@@ -3,7 +3,6 @@ from collections.abc import Callable
 import serial.threaded as sthread
 import serial.tools.list_ports as list_ports
 import sys
-import time 
 
 BAUD = 115200
 serial_worker = None
@@ -56,12 +55,11 @@ def init_serial():
     serial_worker.start()
     
 def deinit_serial():
-    global serial_worker
+    global serial_worker, devlpr_reader
     serial_worker.stop()
     serial_worker = None
     devlpr_reader = None
     
-
 def add_callback(fn: Callable[[str], None]):
     if serial_worker is None or devlpr_reader is None:
         init_serial()
