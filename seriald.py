@@ -1,3 +1,4 @@
+import logging
 import serial
 from collections.abc import Callable
 import serial.threaded as sthread
@@ -15,7 +16,7 @@ class DevlprReader(sthread.LineReader):
 
     def connection_made(self, transport: sthread.Protocol):
         super(DevlprReader, self).connection_made(transport)
-        sys.stdout.write('port opened\n')
+        logging.info('Serial Port Opened\n')
 
     def handle_line(self, data: str):
         for cb in self.read_callbacks:
@@ -23,8 +24,8 @@ class DevlprReader(sthread.LineReader):
 
     def connection_lost(self, exc: Exception):
         if exc:
-            sys.stdout.write("[Err] Connection Lost : {}\n".format(exc))
-        sys.stdout.write("[Info] Port Closed\n")
+            logging.error("Connection Lost : {}\n".format(exc))
+        logging.info("Serial Port Closed\n")
 
 def find_port() -> str:
     port_list = list_ports.comports()
@@ -36,12 +37,12 @@ def find_port() -> str:
 def connect_to_arduino() -> serial.Serial:
     port = find_port()
     if port == "":
-        print("[Err] No Arduino Found")
+        logging.error("No Arduino Found")
         sys.exit(1)
     try:
         serif = serial.serial_for_url(port, baudrate=BAUD)
     except serial.SerialException as e:
-        sys.stdout.write('Failed to open serial port {}: {}\n'.format(port, e))
+        logging.error('Failed to open serial port {}: {}\n'.format(port, e))
         sys.exit(1)
     
     return serif

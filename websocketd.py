@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import asyncio
+import logging
 import websockets
 from websockets import server
 from enum import Enum
@@ -31,17 +32,16 @@ def wrap(msg_type: PacketType, msg: str) -> str:
 def unwrap(msg: str) -> Tuple[PacketType, str]:
     unwrapped = msg.split(PROTOCOL, maxsplit=1)
     if len(unwrapped) < 2:
-        print("[Warn] Invalid message")
+        logging.warn("Invalid message")
         return ("", "")
     return (unwrapped[0], unwrapped[1])
 
 async def subscribe(websocket: server.WebSocketServerProtocol, path: str):
-    print("Connected to {0}:{1} - {2}".format(websocket.remote_address[0], websocket.remote_address[1], path))
+    logging.info("Connected to {0}:{1} - {2}".format(websocket.remote_address[0], websocket.remote_address[1], path))
     if path not in SUBS:
         SUBS[path] = set()
 
     SUBS[path].add(websocket)
-    print(SUBS)
     await publish(websocket, path)
 
 def unsubscribe(websocket: server.WebSocketServerProtocol, path: str):
@@ -69,9 +69,9 @@ async def publish(websocket: server.WebSocketServerProtocol, topic: str):
             seriald.add_callback(DATA.append)
         await asyncio.gather(receive(websocket), send(websocket, DATA, topic))
     except websockets.exceptions.ConnectionClosedError:
-        print("Connection Lost Unexpectedly")
+        logging.warn("Connection Lost Unexpectedly")
     except websockets.exceptions.ConnectionClosedOK:
-        print("Disconnected from {0}:{1} - {2}".format(websocket.remote_address[0], websocket.remote_address[1], topic))
+        logging.info("Disconnected from {0}:{1} - {2}".format(websocket.remote_address[0], websocket.remote_address[1], topic))
     finally:
         unsubscribe(websocket, topic)
         if topic == RAW_DATA_TOPIC and len(SUBS[topic]) == 0:
