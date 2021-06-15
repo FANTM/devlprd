@@ -1,4 +1,6 @@
 import logging
+from protocol import *
+from typing import Dict, List
 import serial
 from collections.abc import Callable
 import serial.threaded as sthread
@@ -10,7 +12,7 @@ serial_worker: serial.Serial = None
 devlpr_reader: sthread.LineReader = None
 
 class DevlprReader(sthread.LineReader):
-    read_callbacks = list()
+    read_callbacks: Dict[str, List[Callable[[str], None]]] = dict()
     def __call__(self):
         return self
 
@@ -19,8 +21,9 @@ class DevlprReader(sthread.LineReader):
         logging.info('Serial Port Opened\n')
 
     def handle_line(self, data: str):
-        for cb in self.read_callbacks:
-            cb(data)
+        (topic, meat) = unwrap(data)
+        for cb in self.read_callbacks[topic]:
+            cb(meat)
 
     def connection_lost(self, exc: Exception):
         if exc:
@@ -44,7 +47,6 @@ def connect_to_arduino() -> serial.Serial:
     except serial.SerialException as e:
         logging.error('Failed to open serial port {}: {}\n'.format(port, e))
         sys.exit(1)
-    
     return serif
 
 def init_serial():
@@ -61,8 +63,10 @@ def deinit_serial():
     serial_worker = None
     devlpr_reader = None
     
-def add_callback(fn: Callable[[str], None]):
+def add_callback(topic, fn: Callable[[str], None]):
     if serial_worker is None or devlpr_reader is None:
         init_serial()
-
-    devlpr_reader.read_callbacks.append(fn)
+    if topic not in devlpr_reader.read_callbacks:
+        devlpr_reader.read_callbacks[topic] = list()    
+    devlpr_reader.read_callbacks[topic].append(fn)
+    
