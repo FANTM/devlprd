@@ -4,19 +4,20 @@ import asyncio
 import websockets
 from websockets import server
 from enum import Enum
-from typing import Tuple
-import math
-import time
-import random
+from typing import Tuple, List
 import seriald
 
 class PacketType(Enum):
     SUBSCRIBE = "s"
     DATA = "d"
     UNSUBSCRIBE = "u"
+    def __str__(self) -> str:
+        return self.value
 
-PROTOCOL = "|"
+PROTOCOL = "|"  # Delimiter for messages
+CONN_INFO = ("localhost", 8765)  # (Address/IP, Port)
 SUBS = {}
+
 RAW_DATA_TOPIC = "raw"
 MAIN_DATA_TOPIC = "data"
 GRIP_RIGHT_TOPIC = "grip_right"
@@ -42,8 +43,8 @@ async def subscribe(websocket: server.WebSocketServerProtocol, path: str):
     SUBS[path].add(websocket)
     print(SUBS)
     await publish(websocket, path)
-        
-async def unsubscribe(websocket: server.WebSocketServerProtocol, path: str):
+
+def unsubscribe(websocket: server.WebSocketServerProtocol, path: str):
     SUBS[path].remove(websocket)
     
 async def receive(websocket: server.WebSocketServerProtocol):
@@ -55,34 +56,27 @@ async def receive(websocket: server.WebSocketServerProtocol):
             # implicitly prevents duplicated subs and messages.
             await subscribe(websocket, data)
 
-async def send(websocket, data, topic):
-    while 1:
+async def send(websocket: server.WebSocketServerProtocol, data: List[float], topic: str):
+    while websocket.open:
         while len(data) > 0:
             await websocket.send(wrap(topic, data.pop()))
-        await asyncio.sleep(0.001) # Spin fast but also allow other tasks to hop in
+        await asyncio.sleep(0.001)  # Spin fast but also allow other tasks to hop in
 
 async def publish(websocket: server.WebSocketServerProtocol, topic: str):
     DATA = list()
-    produce = lambda data : DATA.append(data)
-    recv_task = asyncio.create_task(receive(websocket))
-    send_task = asyncio.create_task(send(websocket, DATA, topic))
     try: 
         if topic == RAW_DATA_TOPIC or topic == MAIN_DATA_TOPIC:
-            seriald.add_callback(produce)
-        # These run in parallel
-        await recv_task
-        await send_task
-
+            seriald.add_callback(DATA.append)
+        await asyncio.gather(receive(websocket), send(websocket, DATA, topic))
     except websockets.exceptions.ConnectionClosedError:
         print("Connection Lost Unexpectedly")
     except websockets.exceptions.ConnectionClosedOK:
         print("Disconnected from {0}:{1} - {2}".format(websocket.remote_address[0], websocket.remote_address[1], topic))
     finally:
-        await unsubscribe(websocket, topic)
+        unsubscribe(websocket, topic)
         if topic == RAW_DATA_TOPIC and len(SUBS[topic]) == 0:
             seriald.deinit_serial()
 
-
-start_server = websockets.serve(subscribe, "localhost", 8765)
+start_server = websockets.serve(subscribe, CONN_INFO[0], CONN_INFO[1])
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()

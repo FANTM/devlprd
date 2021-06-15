@@ -5,8 +5,8 @@ import serial.tools.list_ports as list_ports
 import sys
 
 BAUD = 115200
-serial_worker = None
-devlpr_reader = None
+serial_worker: serial.Serial = None
+devlpr_reader: sthread.LineReader = None
 
 class DevlprReader(sthread.LineReader):
     read_callbacks = list()
@@ -40,7 +40,6 @@ def connect_to_arduino() -> serial.Serial:
         sys.exit(1)
     try:
         serif = serial.serial_for_url(port, baudrate=BAUD)
-        print("Got it")
     except serial.SerialException as e:
         sys.stdout.write('Failed to open serial port {}: {}\n'.format(port, e))
         sys.exit(1)
@@ -56,7 +55,8 @@ def init_serial():
     
 def deinit_serial():
     global serial_worker, devlpr_reader
-    serial_worker.stop()
+    if serial_worker is not None:
+        serial_worker.stop()
     serial_worker = None
     devlpr_reader = None
     
