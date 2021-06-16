@@ -5,7 +5,6 @@ import serial
 from collections.abc import Callable
 import serial.threaded as sthread
 import serial.tools.list_ports as list_ports
-import sys
 
 BAUD = 115200
 serial_worker: serial.Serial = None
@@ -22,8 +21,9 @@ class DevlprReader(sthread.LineReader):
 
     def handle_line(self, data: str):
         (topic, meat) = unwrap(data)
-        for cb in self.read_callbacks[topic]:
-            cb(meat)
+        if topic in self.read_callbacks:
+            for cb in self.read_callbacks[topic]:
+                cb(meat)
 
     def connection_lost(self, exc: Exception):
         if exc:
@@ -41,17 +41,19 @@ def connect_to_arduino() -> serial.Serial:
     port = find_port()
     if port == "":
         logging.error("No Arduino Found")
-        sys.exit(1)
+        return None
     try:
         serif = serial.serial_for_url(port, baudrate=BAUD)
     except serial.SerialException as e:
         logging.error('Failed to open serial port {}: {}\n'.format(port, e))
-        sys.exit(1)
+        return None
     return serif
 
 def init_serial():
     global serial_worker, devlpr_reader
     serif = connect_to_arduino()
+    if serif is None:
+        return
     devlpr_reader = DevlprReader()
     serial_worker = sthread.ReaderThread(serif, DevlprReader)
     serial_worker.start()

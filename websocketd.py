@@ -11,12 +11,7 @@ import seriald
 CONN_INFO = ("localhost", 8765)  # (Address/IP, Port)
 SUBS = {}
 
-RAW_DATA_TOPIC = "raw"
-MAIN_DATA_TOPIC = "data"
-GRIP_RIGHT_TOPIC = "grip_right"
-GRIP_LEFT_TOPIC = "grip_left"
-
-
+logging.basicConfig(level=logging.INFO)
 
 async def subscribe(websocket: server.WebSocketServerProtocol, path: str):
     logging.info("Connected to {0}:{1} - {2}".format(websocket.remote_address[0], websocket.remote_address[1], path))
@@ -51,10 +46,11 @@ async def publish(websocket: server.WebSocketServerProtocol, topic: str):
             seriald.add_callback(topic, DATA.append)
         await asyncio.gather(receive(websocket), send(websocket, DATA, topic))
     except websockets.exceptions.ConnectionClosedError:
-        logging.warn("Connection Lost Unexpectedly")
+        logging.warning("Connection Lost Unexpectedly")
     except websockets.exceptions.ConnectionClosedOK:
         logging.info("Disconnected from {0}:{1} - {2}".format(websocket.remote_address[0], websocket.remote_address[1], topic))
     finally:
+        logging.info("Disconnected from {0}:{1} - {2}".format(websocket.remote_address[0], websocket.remote_address[1], topic))
         unsubscribe(websocket, topic)
         if topic == RAW_DATA_TOPIC and len(SUBS[topic]) == 0:
             seriald.deinit_serial()
