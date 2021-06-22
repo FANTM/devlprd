@@ -41,13 +41,13 @@ def unwrap_packet(msg: str) -> Tuple[str, int, str]:
         pin = -1
     return (unwrapped[0], pin, unwrapped[2])
 
-def unpack_serial(data: str) -> Tuple[int, str]:
+def unpack_serial(raw: str) -> Tuple[int, str]:
     try:
-        byte_array = int(data).to_bytes(2, 'big')
+        byte_array = int(raw).to_bytes(2, 'big')
     except ValueError:
         return (0,0)
-    print("TEST {}".format(len(byte_array)))
     for byte in byte_array:
         print(byte)
-    print("Pin? {} | Data? {}".format((byte_array[0] >> 4) & 0x0F, ((byte_array[0] & 0x0F) << 8) | byte_array[1]))
-    return (0, 0)
+    pin = (byte_array[0] >> 4) & 0x0F
+    data = ((byte_array[0] & 0x0F) << 8) | byte_array[1]
+    return (pin, data)
