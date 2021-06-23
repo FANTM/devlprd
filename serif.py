@@ -1,9 +1,9 @@
 from collections import deque
 import logging
+
 from protocol import *
-from typing import Dict, List, Deque
+from typing import Dict, Deque
 import serial
-from collections.abc import Callable
 import serial.threaded as sthread
 import serial.tools.list_ports as list_ports
 
@@ -11,10 +11,10 @@ BAUD = 2000000
 SERIAL_DATA: Dict[int, Deque[int]] = dict()
 BUFFER_SIZE = 32  # Should use a power of 2 I think?
 serial_worker: sthread.ReaderThread = None
-devlpr_reader: sthread.LineReader = None
+devlpr_reader: sthread.Packetizer = None
 
-class DevlprReader(sthread.LineReader):
-   # read_callbacks: Dict[str, List[Callable[[str], None]]] = dict()
+class DevlprReader(sthread.Packetizer):
+    TERMINATOR = b'\r\n'
     def __call__(self):
         return self
 
@@ -22,11 +22,13 @@ class DevlprReader(sthread.LineReader):
         super(DevlprReader, self).connection_made(transport)
         logging.info('Serial Port Opened')
         
-    # Called on each new line (data + '\n') from the serial port
-    def handle_line(self, raw: str):
+    # Called on each new line (data + TERMINATOR) from the serial port
+    def handle_packet(self, raw: bytes):
         # Always buffer, custom callbacks are further up the stack
-        # Split data according to Arduino packing method
-        (pin, data) = unpack_serial(raw)  # Split into payload and topic
+        try:
+            (pin, data) = unpack_serial(raw)  # Split into payload and topic
+        except DataFormatException:   # If the packet is invalid
+            return
         if pin not in SERIAL_DATA:
             SERIAL_DATA[pin] = deque(maxlen=BUFFER_SIZE)
         SERIAL_DATA[pin].appendleft(data)
@@ -42,7 +44,7 @@ def find_port() -> str:
     port_list = list_ports.comports()
     for port in port_list:
         if 'arduino' in port.description.lower():
-            return port.device    
+            return port.device   
     return ""
 
 # Open the serial port to an ardunio
@@ -76,12 +78,3 @@ def deinit_serial():
         serial_worker.stop()
     serial_worker = None
     devlpr_reader = None
-    
-# Adds a callback to the serial port for when it recv's data.
-# It will also start the serial port connection if it hasn't been init'd yet.
-# def add_callback(topic, fn: Callable[[str], None]):
-#     if serial_worker is None or devlpr_reader is None:
-#         init_serial()
-#     if topic not in devlpr_reader.read_callbacks:
-#         devlpr_reader.read_callbacks[topic] = list()    
-#     devlpr_reader.read_callbacks[topic].append(fn)
