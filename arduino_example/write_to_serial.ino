@@ -1,16 +1,20 @@
 #define PACK(pin, data) ((((pin) & 0x000F) << 12) | ((data) & 0x0FFF))
 
-int NUM_DEVLPRS = 2;
+/* Set these parameters based on your hardware setup */
+int NUM_DEVLPRS = 2; 
 int DEVLPR_PINS[] = {A0, A2};
+/*****************************************************/
 
 unsigned long lastTickMicros = 0L;
 unsigned long microsSinceEMG = 0L;
-const unsigned long MICROS_SCHED_EMG = 500L;
+const unsigned long MICROS_SCHED_EMG = 500L;  // 2k Hz
 
 void setup() {
     Serial.begin(2000000);
 }
 
+/* Safety check in case the alias of A0-A5 isn't directly mapped to the number
+ we expect */
 uint8_t normalize_pin(int analogPin) {
     switch (analogPin)
     {
@@ -31,6 +35,7 @@ uint8_t normalize_pin(int analogPin) {
     }
 }
 
+/* Helper function for formatting data in the way that the daemon expects */
 void fill_packet(uint8_t *buffOut, uint8_t pin, uint16_t data) {
     uint16_t payload = PACK(pin, data);
     buffOut[0] = ((payload & 0xFF00) >> 8) & 0x00FF;
