@@ -1,6 +1,8 @@
 import logging
 from typing import Tuple
 
+from websockets.typing import Data
+
 class DataFormatException(Exception):
     pass
 
@@ -27,17 +29,24 @@ def wrap_packet(msg_type: str, pin: int, msg: str) -> str:
     return "{}{}{}{}{}".format(msg_type, DELIM, str(pin), DELIM, msg)
 
 # Extracts the data, pin and topic from the incoming message from the daemon.
-def unwrap_packet(msg: str) -> Tuple[str, str]:
-    unwrapped = msg.split(DELIM, maxsplit=1)
-    if len(unwrapped) != 2:
-        logging.warning("Invalid Message - msg: {}, unwrapped: {}".format(msg, unwrapped))
+def unwrap_packet(msg: Data) -> Tuple[str, str]:
+    try:
+        unwrapped = str(msg).split(DELIM, maxsplit=1)
+    except TypeError:
+        logging.warning("Invalid Message Type")
         raise DataFormatException
-    return (unwrapped[0], unwrapped[1])
+    
+    try:
+        return (unwrapped[0], unwrapped[1])
+    except IndexError:
+        logging.warning("Invalid Message - msg: {!r}, unwrapped: {}".format(msg, unwrapped))
+        raise DataFormatException
 
-def unpack_serial(byte_array: bytes) -> Tuple[int, str]:
-    if len(byte_array) != 2:
+def unpack_serial(byte_array: bytes) -> Tuple[int, int]:
+    try:        
+        pin = (byte_array[0] >> 4) & 0x0F
+        data = ((byte_array[0] & 0x0F) << 8) | byte_array[1]
+    except IndexError:
         logging.warning("Invalid Message")
         raise DataFormatException
-    pin = (byte_array[0] >> 4) & 0x0F
-    data = ((byte_array[0] & 0x0F) << 8) | byte_array[1]
     return (pin, data)

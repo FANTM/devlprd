@@ -15,44 +15,51 @@ SUBS: Dict[str, List[server.WebSocketServerProtocol]] = dict()
 
 logging.basicConfig(level=logging.INFO)
 
-def subscribe(websocket: server.WebSocketServerProtocol, topic: str):
+def subscribe(websocket: server.WebSocketServerProtocol, topic: str) -> None:
     try:
         SUBS[topic].append(websocket)
     except KeyError:
         SUBS[topic] = list()
         SUBS[topic].append(websocket)
 
-def unsubscribe(websocket: server.WebSocketServerProtocol, path: str):
+def unsubscribe(websocket: server.WebSocketServerProtocol, topic: str) -> None:
     try:
-        SUBS[path].remove(websocket)
-    except:
+        SUBS[topic].remove(websocket)
+    except ValueError:
         logging.warning("Trying to unsubscribe w/o ever subscribing")
-        
-async def receive(websocket: server.WebSocketServerProtocol):
+
+def unsubscribe_all(websocket: server.WebSocketServerProtocol) -> None:
+    for subscribers in SUBS.values():
+        try:
+            subscribers.remove(websocket)
+        except ValueError:
+            pass
+
+async def receive(websocket: server.WebSocketServerProtocol) -> None:
     async for message in websocket:
         command, data = unwrap_packet(message)
         if command == PacketType.SUBSCRIBE:
             logging.info("Sub to {}".format(data))
             subscribe(websocket, data)
 
-async def daemon(websocket: server.WebSocketServerProtocol, path: str):
-    logging.info("Connected to {0}:{1} - {2}".format(websocket.remote_address[0], websocket.remote_address[1], path))
+async def daemon(websocket: server.WebSocketServerProtocol, path: str) -> None:
+    logging.info("Connected to {0}:{1}".format(websocket.remote_address[0], websocket.remote_address[1]))
     try:
         await receive(websocket)
     except websockets.exceptions.ConnectionClosed:
-        logging.info("Disconnected from {0}:{1}".format(websocket.remote_address[0], websocket.remote_address[1], path))
-        unsubscribe(websocket)
+        logging.info("Disconnected from {0}:{1}".format(websocket.remote_address[0], websocket.remote_address[1]))
+        unsubscribe_all(websocket)
 
 
-async def pub(topic: str, pin: int, data: str):
+async def pub(topic: str, pin: int, data: str) -> None:
     try:
         await asyncio.wait([sub.send(wrap_packet(topic, pin, data)) for sub in SUBS[topic]])
     except:
         pass
 
-def main():
+def main() -> None:
     serif.init_serial()
-    start_server = websockets.serve(daemon, ADDRESS[0], ADDRESS[1])
+    start_server = websockets.server.serve(daemon, ADDRESS[0], ADDRESS[1])
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()
 

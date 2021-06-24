@@ -6,10 +6,8 @@ def serial_basic_test():
     init_serial()
     i = 0
     while i < 10:
-        if 0 in SERIAL_DATA:
-            print(SERIAL_DATA[0][0])
-        else:
-            print("Nothing yet")
+        for pin in SERIAL_DATA:
+            print("PIN: {}, DATA: {}".format(pin, SERIAL_DATA[pin][0]))
         i += 1
         time.sleep(1)
     deinit_serial()

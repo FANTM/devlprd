@@ -18,12 +18,12 @@ class DevlprReader(sthread.Packetizer):
     def __call__(self):
         return self
 
-    def connection_made(self, transport: sthread.Protocol):
+    def connection_made(self, transport: sthread.Protocol) -> None:
         super(DevlprReader, self).connection_made(transport)
         logging.info('Serial Port Opened')
         
     # Called on each new line (data + TERMINATOR) from the serial port
-    def handle_packet(self, raw: bytes):
+    def handle_packet(self, raw: bytes) -> None:
         # Always buffer, custom callbacks are further up the stack
         try:
             (pin, data) = unpack_serial(raw)  # Split into payload and topic
@@ -33,7 +33,7 @@ class DevlprReader(sthread.Packetizer):
             SERIAL_DATA[pin] = deque(maxlen=BUFFER_SIZE)
         SERIAL_DATA[pin].appendleft(data)
 
-    def connection_lost(self, exc: Exception):
+    def connection_lost(self, exc: Exception) -> None:
         if exc:
             logging.error("Connection Lost : {}".format(exc))
         logging.info("Serial Port Closed")
@@ -62,7 +62,7 @@ def connect_to_arduino() -> serial.Serial:
 
 # First opens the port, then spins off a watcher into another thread so
 # it doesn't block the main path of execution.
-def init_serial():
+def init_serial() -> None:
     global serial_worker, devlpr_reader
     serif = connect_to_arduino()
     if serif is None:
@@ -72,7 +72,7 @@ def init_serial():
     serial_worker.start()
 
 # Shut it down!
-def deinit_serial():
+def deinit_serial() -> None:
     global serial_worker, devlpr_reader
     if serial_worker is not None:
         serial_worker.stop()
