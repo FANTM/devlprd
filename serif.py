@@ -9,7 +9,7 @@ import serial.tools.list_ports as list_ports
 
 BAUD = 2000000
 SERIAL_DATA: Dict[int, Deque[int]] = dict()
-BUFFER_SIZE = 32  # Should use a power of 2 I think?
+BUFFER_SIZE = 155
 serial_worker: sthread.ReaderThread = None
 devlpr_reader: sthread.Packetizer = None
 
