@@ -58,3 +58,13 @@ class DaemonState:
                 return self.SERIAL_DATA[pin].pop()
             except: 
                 raise KeyError
+
+    def peek_serial_data(self, pin) -> int:
+        with self.SERIAL_DATA_LOCK:
+            try:
+                return self.SERIAL_DATA[pin][len(self.SERIAL_DATA) - 1]
+            except KeyError as e:
+                logging.error("Entry not found")
+                raise e
+            except ValueError:
+                logging.info("Buffer empty")

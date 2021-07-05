@@ -34,7 +34,8 @@ class DevlprReader(sthread.Packetizer):
             (pin, data) = unpack_serial(raw)  # Split into payload and topic
         except DataFormatException:   # If the packet is invalid
             return
-        asyncio.run_coroutine_threadsafe(self.daemon_state.pub(DataTopic.RAW_DATA_TOPIC, pin, data), loop=self.event_loop)
+        if self.event_loop is not None:
+            asyncio.run_coroutine_threadsafe(self.daemon_state.pub(DataTopic.RAW_DATA_TOPIC, pin, data), loop=self.event_loop)
         self.daemon_state.push_serial_data(pin, data)
 
     def connection_lost(self, exc: Exception) -> None:
