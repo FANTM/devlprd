@@ -1,8 +1,10 @@
+from asyncio.events import AbstractEventLoop
 from collections import deque
 import logging
-
+import asyncio
 from protocol import *
 from typing import Dict, Deque
+from devlprd import pub, DaemonState
 import serial
 import serial.threaded as sthread
 import serial.tools.list_ports as list_ports
@@ -15,6 +17,11 @@ devlpr_reader: sthread.Packetizer = None
 
 class DevlprReader(sthread.Packetizer):
     TERMINATOR = b'\r\n'
+    def __init__(self, daemon_state: DaemonState, event_loop: AbstractEventLoop):
+        super().__init__()
+        self.daemon_state = daemon_state
+        self.event_loop = event_loop
+
     def __call__(self):
         return self
 
@@ -31,6 +38,7 @@ class DevlprReader(sthread.Packetizer):
             return
         if pin not in SERIAL_DATA:
             SERIAL_DATA[pin] = deque(maxlen=BUFFER_SIZE)
+        asyncio.run_coroutine_threadsafe(self.daemon_state.pub(DataTopic.RAW_DATA_TOPIC, pin, data), loop=self.event_loop)
         SERIAL_DATA[pin].appendleft(data)
 
     def connection_lost(self, exc: Exception) -> None:
@@ -62,13 +70,13 @@ def connect_to_arduino() -> serial.Serial:
 
 # First opens the port, then spins off a watcher into another thread so
 # it doesn't block the main path of execution.
-def init_serial() -> None:
+def init_serial(state: DaemonState, loop: AbstractEventLoop) -> None:
     global serial_worker, devlpr_reader
     serif = connect_to_arduino()
     if serif is None:
         return
-    devlpr_reader = DevlprReader()
-    serial_worker = sthread.ReaderThread(serif, DevlprReader)
+    devlpr_reader = DevlprReader(state, loop)
+    serial_worker = sthread.ReaderThread(serif, devlpr_reader)
     serial_worker.start()
 
 # Shut it down!
