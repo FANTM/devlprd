@@ -4,7 +4,7 @@ import logging
 import asyncio
 from protocol import *
 from typing import Dict, Deque
-from devlprd import pub, DaemonState
+from DaemonState import DaemonState
 import serial
 import serial.threaded as sthread
 import serial.tools.list_ports as list_ports

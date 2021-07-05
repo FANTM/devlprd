@@ -4,6 +4,7 @@ from threading import Lock
 import logging
 from protocol import wrap_packet
 
+## Thread protected shared state for the Daemon. It manages all of the connections and data topics
 class DaemonState:
     def __init__(self):
         self.SUBS: Dict[str, List[server.WebSocketServerProtocol]] = dict()
