@@ -10,8 +10,6 @@ import serial.threaded as sthread
 import serial.tools.list_ports as list_ports
 
 BAUD = 2000000
-SERIAL_DATA: Dict[int, Deque[int]] = dict()
-BUFFER_SIZE = 155
 serial_worker: sthread.ReaderThread = None
 devlpr_reader: sthread.Packetizer = None
 
@@ -36,10 +34,8 @@ class DevlprReader(sthread.Packetizer):
             (pin, data) = unpack_serial(raw)  # Split into payload and topic
         except DataFormatException:   # If the packet is invalid
             return
-        if pin not in SERIAL_DATA:
-            SERIAL_DATA[pin] = deque(maxlen=BUFFER_SIZE)
         asyncio.run_coroutine_threadsafe(self.daemon_state.pub(DataTopic.RAW_DATA_TOPIC, pin, data), loop=self.event_loop)
-        SERIAL_DATA[pin].appendleft(data)
+        self.daemon_state.push_serial_data(pin, data)
 
     def connection_lost(self, exc: Exception) -> None:
         if exc:
