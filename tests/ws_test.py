@@ -1,5 +1,6 @@
 import os, sys, time
 from threading import Thread
+from typing import final
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from devlprd import *
@@ -11,7 +12,7 @@ async def test_connect():
         async with websockets.connect("ws://{}:{}".format(ADDRESS[0], ADDRESS[1])) as ws:
             await ws.send("{}{}{}".format(PacketType.SUBSCRIBE, DELIM, DataTopic.RAW_DATA_TOPIC))
             time.sleep(1)
-            await pub(DataTopic.RAW_DATA_TOPIC, 0, "test")
+            await STATE.pub(DataTopic.RAW_DATA_TOPIC, 0, "test")
             data = await ws.recv()
             print(data)
             broken_packet = data.split(DELIM, maxsplit=3)
