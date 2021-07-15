@@ -54,7 +54,8 @@ class DaemonState:
         with self.SUBS_LOCK:
             for subscribers in self.SUBS.values():
                 try:
-                    subscribers.remove(websocket)
+                    while websocket in subscribers:
+                        subscribers.remove(websocket)
                 except ValueError:
                     pass
 
