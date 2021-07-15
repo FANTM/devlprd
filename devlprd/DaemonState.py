@@ -26,7 +26,8 @@ class DaemonState:
     def subscribe(self, websocket: websockets.server.WebSocketServerProtocol, topic: str) -> None:
         with self.SUBS_LOCK:
             try:
-                self.SUBS[topic].append(websocket)
+                if websocket not in self.SUBS[topic]:
+                    self.SUBS[topic].append(websocket)
             except KeyError:
                 self.SUBS[topic] = list()
                 self.SUBS[topic].append(websocket)
@@ -52,6 +53,7 @@ class DaemonState:
 
     def unsubscribe_all(self, websocket: websockets.server.WebSocketServerProtocol) -> None:
         with self.SUBS_LOCK:
+            print(self.SUBS)
             for subscribers in self.SUBS.values():
                 try:
                     while websocket in subscribers:
