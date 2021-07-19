@@ -1,7 +1,7 @@
 import logging
-import typing
+from typing import Tuple
 
-import websockets.typing as ws_typing
+from websockets.typing import Data
 
 class DataFormatException(Exception):
     pass
@@ -25,11 +25,11 @@ class DataTopic():
 DELIM = "|"  # Agreed upon protocol delimiter with daemon
 
 # Packages the messages in the way that the daemon expects
-def wrap_packet(msg_type: str, pin: int, msg: int) -> str:
-    return "{}{}{}{}{}".format(msg_type, DELIM, str(pin), DELIM, str(msg))
+def wrap_packet(msg_type: str, pin: int, msg: str) -> str:
+    return "{}{}{}{}{}".format(msg_type, DELIM, str(pin), DELIM, msg)
 
 # Extracts the data, pin and topic from the incoming message from the daemon.
-def unwrap_packet(msg: ws_typing.Data) -> typing.Tuple[str, str]:
+def unwrap_packet(msg: Data) -> Tuple[str, str]:
     try:
         unwrapped = str(msg).split(DELIM, maxsplit=1)
     except TypeError:
@@ -42,7 +42,7 @@ def unwrap_packet(msg: ws_typing.Data) -> typing.Tuple[str, str]:
         logging.warning("Invalid Message - msg: {!r}, unwrapped: {}".format(msg, unwrapped))
         raise DataFormatException
 
-def unpack_serial(byte_array: bytes) -> typing.Tuple[int, int]:
+def unpack_serial(byte_array: bytes) -> Tuple[int, int]:
     try:        
         pin = (byte_array[0] >> 4) & 0x0F
         data = ((byte_array[0] & 0x0F) << 8) | byte_array[1]
