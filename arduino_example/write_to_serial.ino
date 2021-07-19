@@ -1,8 +1,8 @@
 #define PACK(pin, data) ((((pin) & 0x000F) << 12) | ((data) & 0x0FFF))
 
 /* Set these parameters based on your hardware setup */
-int NUM_DEVLPRS = 1; 
-int DEVLPR_PINS[] = {A0};
+int NUM_DEVLPRS = 2; 
+int DEVLPR_PINS[] = {A0, A2};
 /*****************************************************/
 
 unsigned long lastTickMicros = 0L;
