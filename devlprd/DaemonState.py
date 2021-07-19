@@ -40,7 +40,10 @@ class DaemonState:
     async def _pub(self, topic: str, pin: int, callback: Callable[[int], Union[int, bool]]) -> None:
         try:
             for sub in self.SUBS[topic]:
-                await sub.send(protocol.wrap_packet(topic, pin, callback(pin)))
+                try:
+                    await sub.send(protocol.wrap_packet(topic, pin, callback(pin)))
+                except:
+                    pass
         except:
             pass
 
