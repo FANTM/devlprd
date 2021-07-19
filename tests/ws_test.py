@@ -1,38 +1,49 @@
-import os, sys, time
-from threading import Thread
+import asyncio
+import time
+import unittest
+import websockets
+import threading
+import ServerWrapper
+import os, sys
+sys.path.insert(0, os.path.join('..', 'devlprd'))
+import devlprd as d
+import protocol 
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from devlprd import *
-from protocol import *
+class TestWebsocket(unittest.IsolatedAsyncioTestCase):
+    def setUp(self) -> None:
+        self.test_server = ServerWrapper.TestServer()
+        self.test_server_thread: threading.Thread = threading.Thread(target=self.test_server.start)
+        time.sleep(1)
+        self.test_server_thread.start()
+    
+    async def asyncSetUp(self) -> None:
+        pass
 
-async def test_connect():
-    print("Start test_connect()")
-    try:
-        async with websockets.connect("ws://{}:{}".format(ADDRESS[0], ADDRESS[1])) as ws:
-            await ws.send("{}{}{}".format(PacketType.SUBSCRIBE, DELIM, DataTopic.RAW_DATA_TOPIC))
-            time.sleep(1)
-            await pub(DataTopic.RAW_DATA_TOPIC, 0, "test")
-            data = await ws.recv()
-            print(data)
-            broken_packet = data.split(DELIM, maxsplit=3)
-            assert len(broken_packet) == 3
+    def tearDown(self) -> None:
+        self.test_server.stop()
+        self.test_server_thread.join()
+
+    async def test_connect(self) -> None:
+        try:
+            async with websockets.connect("ws://{}:{}".format(d.ADDRESS[0], d.ADDRESS[1])) as ws:
+                None
+        except:
+            self.fail("Couldn't connect")
+            
+    async def test_pubsub(self):
+        async with websockets.connect("ws://{}:{}".format(d.ADDRESS[0], d.ADDRESS[1])) as ws:
+            await ws.send("{}{}{}".format(protocol.PacketType.SUBSCRIBE, protocol.DELIM, self.test_server.TEST_TOPIC))
+            self.test_server.state.pub(0)
+            try:
+                data = await asyncio.wait_for(ws.recv(), 1)
+            except asyncio.TimeoutError:
+                self.fail("Timed out on recv")
+            broken_packet = data.split(protocol.DELIM, maxsplit=3)
+            self.assertEqual(len(broken_packet), 3)
             (topic, pin, meat) = broken_packet
-            assert topic == DataTopic.RAW_DATA_TOPIC
-            assert int(pin) == 0
-            assert meat == "test"
-            print("PASS test_connect()")
-    except Exception:
-        raise KeyboardInterrupt
-
-async def run_all_tests():
-    await test_connect()
-    print("Testing complete, Ctrl-C to leave...")
+            self.assertEqual(topic, self.test_server.TEST_TOPIC)
+            self.assertEqual(pin, "0")
+            self.assertEqual(meat, "1")
 
 if __name__ == "__main__":
-    try:
-        t: Thread = Thread(target=asyncio.new_event_loop().run_until_complete, args=[run_all_tests()])
-        t.start()
-        main()
-    except KeyboardInterrupt:
-        # t.join(timeout=1)
-        exit()
+    unittest.main()
