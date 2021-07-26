@@ -10,11 +10,12 @@ class TestSerial(unittest.TestCase):
         DEVLPR_SERIF = serif.DevlprSerif()
         DEVLPR_SERIF.init_serial(STATE)
         i = 0
-        while i < 10:
+        while i < 500:
             for pin in STATE.SERIAL_DATA:
-                print("PIN: {}, DATA: {}".format(pin, STATE.peek_serial_data(pin)))
+                print(STATE.SERIAL_DATA)
+                # print("PIN: {}, DATA: {}".format(pin, STATE.peek_serial_data(pin)))
             i += 1
-            time.sleep(0.1)
+            time.sleep(0.01)
         DEVLPR_SERIF.deinit_serial()
 
 if __name__ == "__main__":

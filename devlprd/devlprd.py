@@ -14,6 +14,8 @@ devlpr_serial: serif.DevlprSerif = serif.DevlprSerif()
 logging.basicConfig(level=logging.INFO)
 
 async def receive(websocket: ws.server.WebSocketServerProtocol) -> None:
+    """Delegate and process incoming messages from a websocket connection."""
+
     async for message in websocket:
         command, data = protocol.unwrap_packet(message)
         if command == protocol.PacketType.SUBSCRIBE:
@@ -21,6 +23,8 @@ async def receive(websocket: ws.server.WebSocketServerProtocol) -> None:
             state.subscribe(websocket, data)
 
 async def daemon(websocket: ws.server.WebSocketServerProtocol, path: str) -> None:
+    """Main function for websocket connections. Holds the connection until the other side disconnects."""
+
     logging.info("Connected to {0}:{1}".format(websocket.remote_address[0], websocket.remote_address[1]))
     try:
         await receive(websocket)
@@ -29,6 +33,8 @@ async def daemon(websocket: ws.server.WebSocketServerProtocol, path: str) -> Non
         state.unsubscribe_all(websocket)
 
 async def startup() -> None:
+    """Initiallizes both the serial connection and the websocket server. It then just hangs until everything is done internally before cleaning up."""
+
     global state
     state.event_loop = asyncio.get_event_loop()
     devlpr_serial.init_serial(state)
@@ -39,6 +45,8 @@ async def startup() -> None:
     devlpr_serial.deinit_serial()
 
 def shutdown() -> None:
+    """Manually closes out the server. Most of the time you don't need to do this because it should close when you exit the program."""
+    
     global state
     try: 
         state.server.close()
