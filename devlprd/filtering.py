@@ -8,7 +8,8 @@ prevMicros = 0
 prevValue = math.inf  # By making this infinite we avoid a false positive on the first run through.
 
 def micros() -> int:
-    """Gets a microsecond timestamp in the range of [0, 6 * 10^8)"""
+    """Gets a microsecond timestamp in the range of [0, 6 * 10^8)."""
+
     time = DT.datetime.now()
     timestr = time.strftime('%S:%f')
     sec,micro = timestr.split(':')
@@ -24,7 +25,7 @@ def flex_check(value: int, thresholdMult: float = 1.5, cooldown: int = 400000) -
     global prevMicros, prevValue
     currMicros = micros()
     if currMicros < prevMicros:
-        # We rolled over, micro stamp only goes up to 10^6 - 1
+        # We rolled over, micro stamp only goes up to 6 * 10^8 - 1
         delta = currMicros + (1e8 * 6) - prevMicros
     else:
         delta = currMicros - prevMicros

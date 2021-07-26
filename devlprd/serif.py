@@ -1,12 +1,14 @@
 import logging
+import time
 import protocol
 import serial
 import serial.threaded as sthread
 
-BAUD = 2000000
+BAUD = 115200  # Adjust based on the firmware flashed on the DEVLPR
 
 class DevlprReader(sthread.Packetizer):
-    TERMINATOR = b'\r\n'
+    """Extends Packetizer from pyserial threading module, async serial support."""
+    TERMINATOR = b'\r\n'  ## Assumed to be at the end of every message
     def __init__(self, daemon_state):
         super().__init__()
         self.daemon_state = daemon_state
@@ -25,8 +27,8 @@ class DevlprReader(sthread.Packetizer):
             (pin, data) = protocol.unpack_serial(raw)  # Split into payload and topic
         except protocol.DataFormatException:   # If the packet is invalid
             return
-            
-        self.daemon_state.push_serial_data(pin, data)
+        
+        self.daemon_state.enqueue_serial_data(pin, data)
         if self.daemon_state.event_loop is not None:
             self.daemon_state.pub(pin)
 
@@ -36,14 +38,20 @@ class DevlprReader(sthread.Packetizer):
         logging.info("Serial Port Closed")
 
 class DevlprSerif:
+    """Devlpr Ser(ial) i(nter)f(ace). Manages the threaded serial data connection with a DEVLPR board."""
+
     def __init__(self) -> None:
         self.serial_worker: sthread.ReaderThread = None
         self.devlpr_reader: sthread.Packetizer = None
 
-    # Smart port searching, parses metadata to figure out where your Arduino is to avoid
-    # hardcoding the address. If multiple are found, always takes the first in the list
     @staticmethod
     def find_port() -> str:
+        """Smart port searching for finding an Arduino.
+        
+        Parses metadata to figure out where your Arduino is to avoid
+        hardcoding the address. If multiple are found, always takes the first in the list
+        """
+
         import serial.tools.list_ports as list_ports
         port_list = list_ports.comports()
         for port in port_list:
@@ -51,9 +59,10 @@ class DevlprSerif:
                 return port.device   
         return ""
 
-    # Open the serial port to an ardunio
     @staticmethod
     def connect_to_arduino() -> serial.Serial:
+        """Creates a serial connection to an Arduino if possible."""
+
         port = DevlprSerif.find_port()
         if port == "":
             logging.warning("No Arduino Found")
@@ -65,9 +74,10 @@ class DevlprSerif:
             return None
         return serif
 
-    # First opens the port, then spins off a watcher into another thread so
-    # it doesn't block the main path of execution.
+
     def init_serial(self, state) -> None:
+        """ First opens the port, then spins off a watcher into another thread so it doesn't block the main path of execution."""
+
         serif = DevlprSerif.connect_to_arduino()
         if serif is None:
             return
@@ -75,8 +85,9 @@ class DevlprSerif:
         self.serial_worker = sthread.ReaderThread(serif, self.devlpr_reader)
         self.serial_worker.start()
 
-    # Shut it down!
     def deinit_serial(self) -> None:
+        """Disconnect from serial and close out threads."""
+
         if self.serial_worker is not None:
             try:
                 self.serial_worker.stop()
