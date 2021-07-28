@@ -1,24 +1,22 @@
-#!/usr/bin/env python
-
 import asyncio
 import logging
 import websockets as ws
-import serif
-import protocol
-import DaemonState as ds
+from .serif import DevlprSerif
+from .DaemonState import DaemonState
 
 ADDRESS = ("localhost", 8765)  # (Address/IP, Port)
-state: ds.DaemonState = ds.DaemonState()  # Make sure to pass this to any other threads that need access to shared state
-devlpr_serial: serif.DevlprSerif = serif.DevlprSerif()
+state: DaemonState = DaemonState()  # Make sure to pass this to any other threads that need access to shared state
+devlpr_serial: DevlprSerif = DevlprSerif()
 
 logging.basicConfig(level=logging.INFO)
 
 async def receive(websocket: ws.server.WebSocketServerProtocol) -> None:
     """Delegate and process incoming messages from a websocket connection."""
-
+    
+    from .protocol import unwrap_packet, PacketType
     async for message in websocket:
-        command, data = protocol.unwrap_packet(message)
-        if command == protocol.PacketType.SUBSCRIBE:
+        command, data = unwrap_packet(message)
+        if command == PacketType.SUBSCRIBE:
             logging.info("Sub to {}".format(data))
             state.subscribe(websocket, data)
 
@@ -54,9 +52,4 @@ def shutdown() -> None:
     except AttributeError:
         pass  # Already closed and gone
     devlpr_serial.deinit_serial()
-
-def main() -> None:
-    asyncio.run(startup())
-
-if __name__ == "__main__":
-    main()
+    state.server = None
