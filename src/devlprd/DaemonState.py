@@ -95,7 +95,7 @@ class DaemonState:
             except: 
                 raise KeyError
 
-    def peek_serial_data(self, pin) -> int:
+    def peek_serial_data(self, pin: int) -> int:
         """View the last element added to shared serial buffer without actually consuming. 
         
         This is prefered if you need to use the data in many places.

@@ -1,5 +1,9 @@
-import pytest, os, sys, time
+import time
+
+import pytest
+
 from ..src.devlprd.filtering import flex_check
+
 
 class TestFiltering():
     def test_flex(self):

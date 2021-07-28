@@ -2,7 +2,7 @@ import logging
 import serial
 import serial.threaded as sthread
 
-BAUD = 115200  # Adjust based on the firmware flashed on the DEVLPR
+BAUD = 2000000  # Adjust based on the firmware flashed on the DEVLPR
 
 class DevlprReader(sthread.Packetizer):
     """Extends Packetizer from pyserial threading module, async serial support."""
