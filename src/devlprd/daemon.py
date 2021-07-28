@@ -46,7 +46,7 @@ def shutdown() -> None:
     """Manually closes out the server. Most of the time you don't need to do this because it should close when you exit the program."""
     
     global state
-    try: 
+    try:
         state.server.close()
         asyncio.run_coroutine_threadsafe(state.server.wait_closed(), loop=state.event_loop)
     except AttributeError:
