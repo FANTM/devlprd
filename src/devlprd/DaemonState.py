@@ -3,8 +3,6 @@ import logging
 import threading
 import collections as coll
 import websockets.server
-import filtering
-import protocol
 
 from typing import Callable, Deque, Dict, List, Union
 
@@ -13,14 +11,16 @@ class DaemonState:
 
     BUFFER_SIZE = 155  # Somewhat arbitrary, can be fine tuned to provide different results with data processing (e.g. changes response time vs smoothing).
     def __init__(self):
+        from .protocol import DataTopic
+
         self.SUBS: Dict[str, List[websockets.server.WebSocketServerProtocol]] = dict()
         self.SERIAL_DATA: Dict[int, Deque[int]] = dict()
         self.SUBS_LOCK = threading.Lock()
         self.SERIAL_DATA_LOCK = threading.Lock()
         self.event_loop: asyncio.events.AbstractEventLoop = None
         self.callbacks: Dict[str, Callable[[int], Union[int, bool]]] = {
-            protocol.DataTopic.RAW_DATA_TOPIC : self.peek_serial_data,
-            protocol.DataTopic.FLEX_TOPIC     : self.flex_callback,
+            DataTopic.RAW_DATA_TOPIC : self.peek_serial_data,
+            DataTopic.FLEX_TOPIC     : self.flex_callback,
         }
         self.server: websockets.server.WebSocketServer = None
 
@@ -44,11 +44,12 @@ class DaemonState:
 
     async def _pub(self, topic: str, pin: int, callback: Callable[[int], Union[int, bool]]) -> None:
         """Uses a callback to generate data and then pushes that out to every websocket subscribed to the specified topic."""
-
+        
+        from .protocol import wrap_packet
         try:
             for sub in self.SUBS[topic]:
                 try:
-                    await sub.send(protocol.wrap_packet(topic, pin, callback(pin)))
+                    await sub.send(wrap_packet(topic, pin, callback(pin)))
                 except:
                     pass
         except:
@@ -115,8 +116,9 @@ class DaemonState:
                 print(len(self.SERIAL_DATA) - 1)
                 print(self.SERIAL_DATA[pin])
                 raise e
-                
+
     def flex_callback(self, pin: int) -> bool:
         """Wrapper for mapping the flex topic to the filtering flex function."""
-
-        return filtering.flex_check(self.peek_serial_data(pin))
+        
+        from .filtering import flex_check
+        return flex_check(self.peek_serial_data(pin))

@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "devlprd"
+version = "0.1.0"
+description = "Daemon for managing integrations with the FATNM DEVLPR"
+authors = ["Ezra Boley <eboley@wisc.edu>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+websockets = "^9.1"
+pyserial = "^3.5"
+mypy = "^0.910"
+pytest-asyncio = "^0.15.1"
+pytest = "^6.2.4"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.4"
+pytest-asyncio = "^0.15.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

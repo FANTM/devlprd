@@ -1,6 +1,4 @@
 import logging
-import time
-import protocol
 import serial
 import serial.threaded as sthread
 
@@ -23,9 +21,12 @@ class DevlprReader(sthread.Packetizer):
     # Called on each new line (data + TERMINATOR) from the serial port
     def handle_packet(self, raw: bytes) -> None:
         # Always buffer, custom callbacks are further up the stack
+        
+        from .protocol import unpack_serial, DataFormatException
+
         try:
-            (pin, data) = protocol.unpack_serial(raw)  # Split into payload and topic
-        except protocol.DataFormatException:   # If the packet is invalid
+            (pin, data) = unpack_serial(raw)  # Split into payload and topic
+        except DataFormatException:   # If the packet is invalid
             return
         
         self.daemon_state.enqueue_serial_data(pin, data)
@@ -92,5 +93,6 @@ class DevlprSerif:
             try:
                 self.serial_worker.stop()
                 self.serial_worker.serial.close()
+                self.serial_worker = None
             except:
                 pass # Already closed!

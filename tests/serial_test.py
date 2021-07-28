@@ -1,11 +1,10 @@
-import os, sys, time, unittest
-sys.path.insert(0, os.path.join('..', 'devlprd'))
-from DaemonState import DaemonState
-import serif
+import time, pytest
+from ..src.devlprd.DaemonState import DaemonState
+from ..src.devlprd import serif
 
 STATE: DaemonState = DaemonState()
 
-class TestSerial(unittest.TestCase):
+class TestSerial():
     def test_basic(self):
         DEVLPR_SERIF = serif.DevlprSerif()
         DEVLPR_SERIF.init_serial(STATE)
@@ -19,4 +18,4 @@ class TestSerial(unittest.TestCase):
         DEVLPR_SERIF.deinit_serial()
 
 if __name__ == "__main__":
-    unittest.main()
+    pytest.main()
