@@ -11,7 +11,7 @@ int emgValue;
 
 void setup() {
     Serial.begin(2000000);
-    Serial.println();
+    //Serial.println();
 }
 
 /* Safety check in case the alias of A0-A5 isn't directly mapped to the number
@@ -50,11 +50,20 @@ void fillPacket(byte *buffOut, byte pin, int value) {
     buffOut[2] = ((value << 6) & 0xC0) | ((pin << 2) & 0x3C);
     buffOut[3] = 0x01;
 }
-
+/*
 void writeEMG(int pin) {
     emgValue = analogRead(pin);
     fillPacket(bufOut, normalizePin(pin), emgValue);
     Serial.write(bufOut, 4);
+}
+*/
+void writeEMG(int pin) {
+    for (int p = 0; p < 6; p++) {
+        for (int v = -1024; v < 1025; v++) {
+            fillPacket(bufOut, normalizePin(pin), v);
+            Serial.write(bufOut, 4);
+        }
+    }
 }
 
 void loop() {
