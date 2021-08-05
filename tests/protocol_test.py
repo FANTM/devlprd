@@ -22,13 +22,13 @@ class TestUnwrap():
 
 class TestUnpack():
     def test_nominal(self):
-        byte_array = [0x3B, 0xEF]
+        byte_array = [0xDE, 0xFE, 0xCC]
         try:
             (pin, data) = unpack_serial(byte_array)
         except DataFormatException:
             pytest.fail("Unpack failed")
         assert pin == 3
-        assert data == 0x0BEF
+        assert data == 0xDFFF
 
 if __name__ == "__main__":
     pytest.main()
