@@ -6,7 +6,7 @@ BAUD = 2000000  # Adjust based on the firmware flashed on the DEVLPR
 
 class DevlprReader(sthread.Packetizer):
     """Extends Packetizer from pyserial threading module, async serial support."""
-    TERMINATOR = b'\r\n'  ## Assumed to be at the end of every message
+    TERMINATOR = 0x01  ## Assumed to be at the end of every message
     def __init__(self, daemon_state):
         super().__init__()
         self.daemon_state = daemon_state

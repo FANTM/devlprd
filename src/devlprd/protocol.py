@@ -57,12 +57,12 @@ def unwrap_packet(msg: ws_typing.Data) -> typing.Tuple[str, str]:
 
 def unpack_serial(byte_array: bytes) -> typing.Tuple[int, int]:
     """Takes an incoming serial, bitpacked message from the DEVLPR and formats it for the daemon."""
-    if len(byte_array) != 2:
+    if len(byte_array) != 3:
         logging.warning("Invalid Message")
         raise DataFormatException
-    try:        
-        pin = (byte_array[0] >> 4) & 0x0F
-        data = ((byte_array[0] & 0x0F) << 8) | byte_array[1]
+    try:
+        data = (((byte_array[0] >> 1) & 0x7F) << 9) | (((byte_array[1] >> 1) & 0x7F) << 2) | ((byte_array[2] >> 6) & 0x03)
+        pin = (byte_array[2] >> 2) & 0x0F
     except IndexError:
         logging.warning("Invalid Message")
         raise DataFormatException
