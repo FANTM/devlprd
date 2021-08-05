@@ -1,5 +1,6 @@
 import logging
 import typing
+import struct
 
 import websockets.typing as ws_typing
 
@@ -61,8 +62,16 @@ def unpack_serial(byte_array: bytes) -> typing.Tuple[int, int]:
         logging.warning("Invalid Message")
         raise DataFormatException
     try:
-        data = (((byte_array[0] >> 1) & 0x7F) << 9) | (((byte_array[1] >> 1) & 0x7F) << 2) | ((byte_array[2] >> 6) & 0x03)
-        pin = (byte_array[2] >> 2) & 0x0F
+        # create a temporary bytearray to unpack our weird protocol
+        # bit packing in 3 bytes for emg (16 bit) and pin (4 bit) follows:
+        # eeee eee0
+        # eeee eee0
+        # eepp pp00
+        tmp = bytearray([0,0,0])
+        tmp[0] = byte_array[0] | (byte_array[1] >> 7)
+        tmp[1] = ((byte_array[1] << 1) & 0xFF) | (byte_array[2] >> 6)
+        tmp[2] = (byte_array[2] >> 2) & 0x0F
+        data,pin = struct.unpack('>hB', tmp)
     except IndexError:
         logging.warning("Invalid Message")
         raise DataFormatException
