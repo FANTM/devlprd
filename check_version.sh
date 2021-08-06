@@ -9,7 +9,8 @@ cd ..
 rm -rf devlprd-main
 if [[ $MAIN_V = $CURR_V ]]
 then
-	exit 0
-else
+	echo "Bump the version!"
 	exit 1
+else
+	exit 0
 fi
