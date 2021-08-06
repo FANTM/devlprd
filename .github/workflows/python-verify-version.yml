@@ -23,5 +23,5 @@ jobs:
         python -m pip install --upgrade pip
         curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
         export PATH="$PATH:$HOME/.poetry/bin"
-        ./check_version.sh
+        bash ./check_version.sh
         exit $?
