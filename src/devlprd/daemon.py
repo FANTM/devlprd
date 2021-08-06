@@ -10,6 +10,9 @@ devlpr_serial: DevlprSerif = DevlprSerif()
 
 logging.basicConfig(level=logging.INFO)
 
+def main():
+    asyncio.run(startup())
+
 async def receive(websocket: ws.server.WebSocketServerProtocol) -> None:
     """Delegate and process incoming messages from a websocket connection."""
     
