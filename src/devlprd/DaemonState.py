@@ -2,7 +2,7 @@ import asyncio
 import logging
 import threading
 import collections as coll
-import websockets.server
+import websockets.server as wss
 
 from typing import Callable, Deque, Dict, List, Union
 
@@ -17,14 +17,12 @@ class DaemonState:
         self.SERIAL_DATA: Dict[int, Deque[int]] = dict()
         self.SUBS_LOCK = threading.Lock()
         self.SERIAL_DATA_LOCK = threading.Lock()
-        self.event_loop: asyncio.events.AbstractEventLoop = None
         self.callbacks: Dict[str, Callable[[int], Union[int, bool]]] = {
             DataTopic.RAW_DATA_TOPIC : self.peek_serial_data,
             DataTopic.FLEX_TOPIC     : self.flex_callback,
         }
-        self.server: websockets.server.WebSocketServer = None
 
-    def subscribe(self, websocket: websockets.server.WebSocketServerProtocol, topic: str) -> None:
+    def subscribe(self, websocket: wss.WebSocketServerProtocol, topic: str) -> None:
         """Add a websocket to the list that should recv new data when available for a specified topic."""
 
         with self.SUBS_LOCK:
@@ -38,7 +36,6 @@ class DaemonState:
     def pub(self, pin: int) -> None:
         """Publishes to all data topics. Each topic has a callback associated with it and that's how it generates the outbound data."""
 
-        # attributes = [attr for attr in dir(DataTopic) if not attr.startswith('__')]  # https://stackoverflow.com/a/5970022
         for topic, cb in self.callbacks.items():
             asyncio.run_coroutine_threadsafe(self._pub(topic, pin, cb), loop=self.event_loop)
 
@@ -55,7 +52,7 @@ class DaemonState:
         except:
             pass
 
-    def unsubscribe(self, websocket: websockets.server.WebSocketServerProtocol, topic: str) -> None:
+    def unsubscribe(self, websocket: wss.WebSocketServerProtocol, topic: str) -> None:
         """Removes a websocket from the list of websockets that should get data from a topic."""
 
         try:
@@ -64,7 +61,7 @@ class DaemonState:
         except ValueError:
             logging.warning("Trying to unsubscribe w/o ever subscribing")
 
-    def unsubscribe_all(self, websocket: websockets.server.WebSocketServerProtocol) -> None:
+    def unsubscribe_all(self, websocket: wss.WebSocketServerProtocol) -> None:
         """Removes a websocket from every topic it is subscribed to so it recvs no new data."""
 
         with self.SUBS_LOCK:
@@ -85,15 +82,6 @@ class DaemonState:
             except KeyError:
                 self.SERIAL_DATA[pin] = coll.deque(maxlen=self.BUFFER_SIZE)
                 self.SERIAL_DATA[pin].appendleft(data)
-
-    def dequeue_serial_data(self, pin: int) -> int:
-        """FIFO removal of data from shared serial data buffer. Used with data processing that consumes raw data."""
-
-        with self.SERIAL_DATA_LOCK:
-            try:
-                return self.SERIAL_DATA[pin].pop()
-            except: 
-                raise KeyError
 
     def peek_serial_data(self, pin: int) -> int:
         """View the last element added to shared serial buffer without actually consuming. 
