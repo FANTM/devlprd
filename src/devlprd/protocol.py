@@ -59,7 +59,7 @@ def unwrap_packet(msg: ws_typing.Data) -> typing.Tuple[str, str]:
 def unpack_serial(byte_array: bytes) -> typing.Tuple[int, int]:
     """Takes an incoming serial, bitpacked message from the DEVLPR and formats it for the daemon."""
     if len(byte_array) != 3:
-        logging.warning("Invalid Message")
+        logging.warning("Invalid Message - {}".format(byte_array))
         raise DataFormatException
     try:
         # create a temporary bytearray to unpack our weird protocol

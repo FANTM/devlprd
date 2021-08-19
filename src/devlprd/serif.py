@@ -1,9 +1,11 @@
 import logging
 import serial
 import serial.threaded as sthread
+import serial.tools.list_ports as list_ports
 
+from .protocol import unpack_serial,DataFormatException
 
-BAUD = 2000000  # Adjust based on the firmware flashed on the DEVLPR
+BAUD = 115200  # Adjust based on the firmware flashed on the DEVLPR
 
 
 def find_arduino_port() -> str:
@@ -13,7 +15,6 @@ def find_arduino_port() -> str:
     hardcoding the address. If multiple are found, always takes the first in the list
     """
 
-    import serial.tools.list_ports as list_ports
     port_list = list_ports.comports()
     for port in port_list:
         if "arduino" in port.description.lower():
@@ -57,8 +58,6 @@ class DevlprReader(sthread.Packetizer):
     # Called on each new packet (packet + TERMINATOR) from the serial port
     def handle_packet(self, packet: bytes) -> None:
         # Always buffer, custom callbacks are further up the stack
-        
-        from .protocol import unpack_serial, DataFormatException
 
         try:
             (pin, data) = unpack_serial(packet)  # Split into payload and topic

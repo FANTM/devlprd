@@ -86,4 +86,4 @@ class DaemonState:
                 self.SERIAL_DATA[pin].appendleft(data)
         # we need to make sure each processed chunk of data is published in lock-step with receipt of raw
         # might need to consider a Queue if publishing gets out of order
-        asyncio.run_coroutine_threadsafe(self._pub_int(DataTopic.RAW_DATA_TOPIC, pin, data))
+        asyncio.run_coroutine_threadsafe(self._pub_int(DataTopic.RAW_DATA_TOPIC, pin, data), loop=self.event_loop)

@@ -10,7 +10,7 @@ byte bufOut[4];
 int emgValue;
 
 void setup() {
-    Serial.begin(2000000);
+    Serial.begin(115200);
     //Serial.println();
 }
 
@@ -56,7 +56,7 @@ void writeEMG(int pin) {
     fillPacket(bufOut, normalizePin(pin), emgValue);
     Serial.write(bufOut, 4);
 }
-/*
+
 void loop() {
     // how much time has passed since last loop
     unsigned long currMicros = micros();
@@ -76,16 +76,4 @@ void loop() {
     lastTickMicros = currMicros;
     // delay a few micros so we're not spinning as fast as possible
     delayMicroseconds(10);
-}
-*/
-
-void loop() {
-    for (byte p = 0; p < 6; p++) {
-        for (int v = -1024; v < 1025; v++) {
-            fillPacket(bufOut, p, v);
-            Serial.write(bufOut, 4);
-            delayMicroseconds(50);
-        }
-    }
-    
 }
