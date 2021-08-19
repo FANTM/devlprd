@@ -6,8 +6,8 @@ from .DaemonState import DaemonState
 
 ADDRESS = ("localhost", 8765)  # (Address/IP, Port)
 ws_server: ws.server.WebSocketServer = None
-state: DaemonState = DaemonState()  # Make sure to pass this to any other threads that need access to shared state
-devlpr_serial: DevlprSerif = DevlprSerif()
+state: DaemonState = None  # Make sure to pass this to any other threads that need access to shared state
+devlpr_serial: DevlprSerif = None
 
 logging.basicConfig(level=logging.INFO)
 
@@ -34,7 +34,17 @@ async def ws_handler(websocket: ws.server.WebSocketServerProtocol, path: str) ->
 async def startup() -> None:
     """Initiallizes both the serial connection and the websocket server. It then just hangs until everything is done internally before cleaning up."""
 
+    global ws_server
+    global state
+    global devlpr_serial
+    # we'll want the asyncio event loop for subscriptions, some processing, and publishing
+    event_loop = asyncio.get_running_loop()
+    # the DaemonState requests publishes upon state change, so needs to know the event loop
+    state = DaemonState(event_loop)
+    # we initialize our serial connection, which is managed on a separate thread
+    devlpr_serial = DevlprSerif()
     devlpr_serial.init_serial(state)
+    # and now we serve websockets, waiting for incoming subscribers to data (pydevlpr and other libraries)
     ws_server = ws.server.serve(ws_handler, ADDRESS[0], ADDRESS[1])
     async with ws_server as server:
         await server.wait_closed()

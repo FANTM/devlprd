@@ -66,9 +66,6 @@ class DevlprReader(sthread.Packetizer):
             return
         
         self.daemon_state.enqueue_serial_data(pin, data)
-        # TODO: Mark new data ready to go
-        #if self.daemon_state.event_loop is not None:
-        #    self.daemon_state.pub(pin)
 
     def connection_lost(self, exc: Exception) -> None:
         if exc:
