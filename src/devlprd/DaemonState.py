@@ -2,7 +2,6 @@ import asyncio
 import logging
 import threading
 import collections as coll
-import websockets.server as wss
 
 from .protocol import wrap_packet,DataTopic
 from typing import Callable, Deque, Dict, List, Union

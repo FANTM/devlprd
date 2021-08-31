@@ -4,6 +4,25 @@ import struct
 
 import websockets.typing as ws_typing
 
+class DaemonSocket:
+
+    def __init__(self, reader, writer):
+        self.reader = reader
+        self.writer = writer
+        self.remote_address = writer.get_extra_info('peername')
+
+    def get_remote_address(self):
+        return self.remote_address
+
+    async def send(self, msg):
+        msg += "\n"
+        self.writer.write(msg.encode())
+        await self.writer.drain()
+
+    async def recv(self):
+        msg = await self.reader.readline()
+        return msg.decode().strip()
+
 class DataFormatException(Exception):
     """Exception thrown when protocol.py conversions fail."""
 
