@@ -1,30 +1,22 @@
-#include "Libdevlpr.h"
-
-#define PACK(pin, data) ((((pin) & 0x000F) << 12) | ((data) & 0x0FFF))
-
 /* Set these parameters based on your hardware setup */
 int NUM_DEVLPRS = 1; 
 int DEVLPR_PINS[] = {A0};
 /*****************************************************/
 
-const int MAX_RESULTS = 2;
-volatile int results [MAX_RESULTS];
-volatile int resultNumber;
-
+unsigned long MICROS_PER_SAMPLE = 1000L;
 unsigned long lastTickMicros = 0L;
 unsigned long microsSinceEMG = 0L;
-Devlpr dev(A0, FILTER_60HZ);
-void printEMG(Devlpr *d);
+byte bufOut[4];
+int emgValue;
 
 void setup() {
-    Serial.begin(2000000);
-    Serial.println();
-    dev.scheduleFunction(printEMG, 1);
+    Serial.begin(115200);
+    //Serial.println();
 }
 
 /* Safety check in case the alias of A0-A5 isn't directly mapped to the number
  we expect */
-uint8_t normalize_pin(int analogPin) {
+byte normalizePin(int analogPin) {
     switch (analogPin)
     {
     case A0:
@@ -45,21 +37,43 @@ uint8_t normalize_pin(int analogPin) {
 }
 
 /* Helper function for formatting data in the way that the daemon expects */
-void fill_packet(uint8_t *buffOut, uint8_t pin, uint16_t data) {
-    uint16_t payload = PACK(pin, data);
-    buffOut[0] = ((payload & 0xFF00) >> 8) & 0x00FF;
-    buffOut[1] = payload & 0xFF;
-    buffOut[2] = '\r';
-    buffOut[3] = '\n';
+void fillPacket(byte *buffOut, byte pin, int value) {
+    // pack 16-bits for the emg value and 4 bits for the pin into
+    // three bytes in the following fashion (e=emg, p=pin)
+    // eeee eee0
+    // eeee eee0
+    // eepp pp00
+    // and terminate with a 1
+    // 0000 0001
+    buffOut[0] = (value >> 8) & 0xFE;
+    buffOut[1] = (value >> 1) & 0xFE;
+    buffOut[2] = ((value << 6) & 0xC0) | ((pin << 2) & 0x3C);
+    buffOut[3] = 0x01;
 }
 
-void printEMG(Devlpr *d) {
-  int filtered = d->windowPeakToPeakAmplitude(true);
-  uint8_t buffOut[4];
-  fill_packet(buffOut, normalize_pin(A0), (uint16_t) filtered);
-  Serial.write(buffOut, 4);
+void writeEMG(int pin) {
+    emgValue = analogRead(pin);
+    fillPacket(bufOut, normalizePin(pin), emgValue);
+    Serial.write(bufOut, 4);
 }
 
 void loop() {
-    dev.tick();
+    // how much time has passed since last loop
+    unsigned long currMicros = micros();
+    unsigned long microsDelta = currMicros - lastTickMicros;
+    // accrue the micros since last
+    microsSinceEMG += microsDelta;
+    // see if enough have passed for our 1000Hz sampling
+    if (microsSinceEMG >= MICROS_PER_SAMPLE) {
+        // read all of the pins that were indicated
+        for (int i = 0; i < NUM_DEVLPRS; i++) {
+            writeEMG(DEVLPR_PINS[i]);
+        }
+        // and update the micros since
+        microsSinceEMG = 0L;
+    }
+    // pretend no time has passed since function start to stay on schedule
+    lastTickMicros = currMicros;
+    // delay a few micros so we're not spinning as fast as possible
+    delayMicroseconds(10);
 }

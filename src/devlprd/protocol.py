@@ -1,7 +1,40 @@
 import logging
 import typing
+import struct
 
 import websockets.typing as ws_typing
+
+class DaemonSocket:
+
+    def __init__(self, reader, writer):
+        self.reader = reader
+        self.writer = writer
+        self.remote_address = writer.get_extra_info('peername')
+
+    def get_remote_address(self):
+        return self.remote_address
+
+    def closed(self):
+        return self.writer.is_closing()
+
+    async def close(self):
+        self.writer.close()
+        await self.writer.wait_closed()
+
+    async def send(self, msg):
+        # make sure we're not closed before trying to write
+        if self.closed():
+            return
+        msg += "\n"
+        self.writer.write(msg.encode())
+        await self.writer.drain()
+
+    async def recv(self):
+        # make sure we're not closed before trying to read
+        if self.closed():
+            return ''
+        msg = await self.reader.readline()
+        return msg.decode().strip()
 
 class DataFormatException(Exception):
     """Exception thrown when protocol.py conversions fail."""
@@ -58,11 +91,19 @@ def unwrap_packet(msg: ws_typing.Data) -> typing.Tuple[str, str]:
 def unpack_serial(byte_array: bytes) -> typing.Tuple[int, int]:
     """Takes an incoming serial, bitpacked message from the DEVLPR and formats it for the daemon."""
     if len(byte_array) != 3:
-        logging.warning("Invalid Message")
+        logging.warning("Invalid Message - {}".format(byte_array))
         raise DataFormatException
     try:
-        data = (((byte_array[0] >> 1) & 0x7F) << 9) | (((byte_array[1] >> 1) & 0x7F) << 2) | ((byte_array[2] >> 6) & 0x03)
-        pin = (byte_array[2] >> 2) & 0x0F
+        # create a temporary bytearray to unpack our weird protocol
+        # bit packing in 3 bytes for emg (16 bit) and pin (4 bit) follows:
+        # eeee eee0
+        # eeee eee0
+        # eepp pp00
+        tmp = bytearray([0,0,0])
+        tmp[0] = byte_array[0] | (byte_array[1] >> 7)
+        tmp[1] = ((byte_array[1] << 1) & 0xFF) | (byte_array[2] >> 6)
+        tmp[2] = (byte_array[2] >> 2) & 0x0F
+        data,pin = struct.unpack('>hB', tmp)
     except IndexError:
         logging.warning("Invalid Message")
         raise DataFormatException
