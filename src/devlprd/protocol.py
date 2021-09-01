@@ -14,12 +14,25 @@ class DaemonSocket:
     def get_remote_address(self):
         return self.remote_address
 
+    def closed(self):
+        return self.writer.is_closing()
+
+    async def close(self):
+        self.writer.close()
+        await self.writer.wait_closed()
+
     async def send(self, msg):
+        # make sure we're not closed before trying to write
+        if self.closed():
+            return
         msg += "\n"
         self.writer.write(msg.encode())
         await self.writer.drain()
 
     async def recv(self):
+        # make sure we're not closed before trying to read
+        if self.closed():
+            return ''
         msg = await self.reader.readline()
         return msg.decode().strip()
 

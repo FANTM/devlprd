@@ -14,13 +14,14 @@ logging.basicConfig(level=logging.INFO)
 async def client_accept(sock: DaemonSocket) -> None:
     """Delegate and process incoming messages from a websocket connection."""
 
-    message = ' '.encode()
+    message = ' '
     while len(message) > 0:
         message = await sock.recv()
-        command, data = unwrap_packet(message)
-        if command == PacketType.SUBSCRIBE:
-            logging.info("Sub to {}".format(data))
-            state.subscribe(sock, data)
+        if len(message) > 0:
+            command, data = unwrap_packet(message)
+            if command == PacketType.SUBSCRIBE:
+                logging.info("Sub to {}".format(data))
+                state.subscribe(sock, data)
 
 async def client_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     """Main function for socket connections. Holds the connection until the other side disconnects."""
