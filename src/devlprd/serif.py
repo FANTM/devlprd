@@ -3,10 +3,8 @@ import serial
 import serial.threaded as sthread
 import serial.tools.list_ports as list_ports
 
-from .protocol import unpack_serial,DataFormatException
-
-BAUD = 115200  # Adjust based on the firmware flashed on the DEVLPR
-
+from pydevlpr_protocol import unpack_serial, DataFormatException
+from .config import CONFIG
 
 def find_arduino_port() -> str:
     """Smart port searching for finding an Arduino.
@@ -30,7 +28,7 @@ def connect_to_arduino() -> serial.Serial:
         logging.warning("No Arduino Found")
         return None
     try:
-        serif = serial.serial_for_url(port, baudrate=BAUD)
+        serif = serial.serial_for_url(port, baudrate=CONFIG["BAUD"])
     except serial.SerialException as e:
         logging.error("Failed to open serial port {}: {}".format(port, e))
         return None

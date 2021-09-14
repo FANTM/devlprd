@@ -1,9 +1,9 @@
-import time, pytest
+import time, pytest, asyncio, logging
 from ..src.devlprd.DaemonState import DaemonState
 from ..src.devlprd import serif
 
-STATE: DaemonState = DaemonState()
-
+STATE: DaemonState = DaemonState(asyncio.get_event_loop())
+logging.basicConfig(level=logging.INFO)
 class TestSerial():
     def test_basic(self):
         DEVLPR_SERIF = serif.DevlprSerif()
@@ -11,8 +11,8 @@ class TestSerial():
         i = 0
         while i < 500:
             for pin in STATE.SERIAL_DATA:
-                print(STATE.SERIAL_DATA)
-                # print("PIN: {}, DATA: {}".format(pin, STATE.peek_serial_data(pin)))
+                # logging.info(STATE.SERIAL_DATA)
+                logging.info("PIN: {}, DATA: {}".format(pin, STATE.SERIAL_DATA[pin]))
             i += 1
             time.sleep(0.01)
         DEVLPR_SERIF.deinit_serial()

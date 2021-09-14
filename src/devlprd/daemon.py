@@ -1,10 +1,11 @@
 import asyncio
 import logging
-from .serif import DevlprSerif
-from .protocol import unwrap_packet, PacketType, DaemonSocket
-from .DaemonState import DaemonState
+from pydevlpr_protocol import DataFormatException, unwrap_packet, PacketType, DaemonSocket
 
-ADDRESS = ("localhost", 8765)  # (Address/IP, Port)
+from .serif import DevlprSerif
+from .DaemonState import DaemonState
+from .config import CONFIG
+
 server = None
 state: DaemonState = None  # Make sure to pass this to any other threads that need access to shared state
 devlpr_serial: DevlprSerif = None
@@ -21,7 +22,10 @@ async def client_accept(sock: DaemonSocket) -> None:
     while len(message) > 0:
         message = await sock.recv()
         if len(message) > 0:
-            command, data = unwrap_packet(message)
+            try:
+                command, data = unwrap_packet(message)
+            except DataFormatException:
+                continue  # Handle an unexpected issue with the packet
             if command == PacketType.SUBSCRIBE:
                 logging.info("Sub to {}".format(data))
                 state.subscribe(sock, data)
@@ -51,7 +55,7 @@ async def startup() -> None:
     devlpr_serial = DevlprSerif()
     devlpr_serial.init_serial(state)
     # start a server, waiting for incoming subscribers to data (pydevlpr and other libraries)
-    server = await asyncio.start_server(client_handler, ADDRESS[0], ADDRESS[1])
+    server = await asyncio.start_server(client_handler, CONFIG['ADDRESS'][0], CONFIG['ADDRESS'][1])
     async with server:
         await server.serve_forever()
     devlpr_serial.deinit_serial()

@@ -1,16 +1,55 @@
 /* Set these parameters based on your hardware setup */
-int NUM_DEVLPRS = 1; 
-int DEVLPR_PINS[] = {A0};
+#define NUM_DEVLPRS 1
+#define BAUD 2000000
+
+int DEVLPR_PINS[] = {A0, A1, A2, A3, A4, A5};
+int EMG_VALS[NUM_DEVLPRS];
 /*****************************************************/
 
+#define BASE_PIN 8
 unsigned long MICROS_PER_SAMPLE = 1000L;
 unsigned long lastTickMicros = 0L;
 unsigned long microsSinceEMG = 0L;
 byte bufOut[4];
-int emgValue;
+volatile int emgValue;
+volatile bool new_msg = false;
+
+ISR(TIMER0_COMPA_vect) {  // Timer0 interrupt, 2kHz
+    if (!new_msg) {
+      for (int i = 0; i < NUM_DEVLPRS; i++) {
+        EMG_VALS[i] = analogRead(DEVLPR_PINS[i]);
+      }
+      new_msg = true;
+    }
+}
 
 void setup() {
-    Serial.begin(115200);
+    int base_pin = 8;
+    for (int i = 0; i < NUM_DEVLPRS; i++) {
+       pinMode(base_pin + i, OUTPUT);
+    }
+    
+    cli();  // Stop interrupts
+    //set timer0 interrupt at 2kHz
+    TCCR0A = 0;// set entire TCCR2A register to 0
+    TCCR0B = 0;// same for TCCR2B
+    TCNT0  = 0;//initialize counter value to 0
+    // set compare match register for 2khz increments
+    OCR0A = 124;// = (16*10^6) / (2000*64) - 1 (must be <256)
+
+    // OCR0A = 249;  // 8kHz
+    // turn on CTC mode
+    TCCR0A |= (1 << WGM01);
+
+    // TCCR0B |= (1 << CS00);  // 8kHz
+    
+    // Set CS01 and CS00 bits for 64 prescaler
+    TCCR0B |= (1 << CS01) | (1 << CS00);   
+    // enable timer compare interrupt
+    TIMSK0 |= (1 << OCIE0A);
+    sei();  // Start interrupts
+
+    Serial.begin(BAUD);
     //Serial.println();
 }
 
@@ -52,28 +91,38 @@ void fillPacket(byte *buffOut, byte pin, int value) {
 }
 
 void writeEMG(int pin) {
-    emgValue = analogRead(pin);
-    fillPacket(bufOut, normalizePin(pin), emgValue);
-    Serial.write(bufOut, 4);
+//    emgValue = analogRead(pin);
+//    fillPacket(bufOut, normalizePin(pin), emgValue);
+//    Serial.write(bufOut, 4);
+
 }
 
 void loop() {
-    // how much time has passed since last loop
-    unsigned long currMicros = micros();
-    unsigned long microsDelta = currMicros - lastTickMicros;
-    // accrue the micros since last
-    microsSinceEMG += microsDelta;
-    // see if enough have passed for our 1000Hz sampling
-    if (microsSinceEMG >= MICROS_PER_SAMPLE) {
-        // read all of the pins that were indicated
-        for (int i = 0; i < NUM_DEVLPRS; i++) {
-            writeEMG(DEVLPR_PINS[i]);
-        }
-        // and update the micros since
-        microsSinceEMG = 0L;
+    if (new_msg) {
+      for (int i = 0; i < NUM_DEVLPRS; i++) {
+        fillPacket(bufOut, normalizePin(DEVLPR_PINS[i]), EMG_VALS[i]);
+        Serial.write(bufOut, 4);
+//        digitalWrite(BASE_PIN + i, HIGH);
+//        digitalWrite(BASE_PIN + i, LOW);
+      }
+      new_msg = false;
     }
-    // pretend no time has passed since function start to stay on schedule
-    lastTickMicros = currMicros;
-    // delay a few micros so we're not spinning as fast as possible
-    delayMicroseconds(10);
+    // how much time has passed since last loop
+    // unsigned long currMicros = micros();
+    // unsigned long microsDelta = currMicros - lastTickMicros;
+    // // accrue the micros since last
+    // microsSinceEMG += microsDelta;
+    // // see if enough have passed for our 1000Hz sampling
+    // if (microsSinceEMG >= MICROS_PER_SAMPLE) {
+    //     // read all of the pins that were indicated
+    //     for (int i = 0; i < NUM_DEVLPRS; i++) {
+    //         writeEMG(DEVLPR_PINS[i]);
+    //     }
+    //     // and update the micros since
+    //     microsSinceEMG = 0L;
+    // }
+    // // pretend no time has passed since function start to stay on schedule
+    // lastTickMicros = currMicros;
+    // // delay a few micros so we're not spinning as fast as possible
+    // delayMicroseconds(10);
 }

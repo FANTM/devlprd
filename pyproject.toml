@@ -11,6 +11,7 @@ python = "^3.6"
 websockets = "^9.1"
 pyserial = "^3.5"
 mypy = "^0.910"
+pydevlpr-protocol = "^0.1.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"

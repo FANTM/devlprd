@@ -3,9 +3,10 @@ import time
 import pytest
 import websockets
 import threading
+from pydevlpr_protocol import PacketType, unwrap_packet, wrap_packet 
+
 from .ServerWrapper import MockServer
-from ..src.devlprd.protocol import PacketType, DELIM 
-from ..src.devlprd.daemon import ADDRESS
+from ..src.devlprd.config import CONFIG
 
 @pytest.fixture(autouse=True)
 def server() -> MockServer:
@@ -20,6 +21,7 @@ def server() -> MockServer:
 
 @pytest.mark.asyncio
 async def test_connect() -> None:
+    ADDRESS = CONFIG.ADDRESS
     try:
         async with websockets.connect("ws://{}:{}".format(ADDRESS[0], ADDRESS[1])) as ws:
             pass
@@ -33,7 +35,7 @@ async def block_until_subscribed(test_server) -> None:
 @pytest.mark.asyncio
 async def test_pubsub(server):
     async with websockets.connect("ws://{}:{}".format(ADDRESS[0], ADDRESS[1])) as ws:
-        await ws.send("{}{}{}".format(PacketType.SUBSCRIBE, DELIM, server.TEST_TOPIC))
+        await ws.send(wrap_packet(PacketType.SUBSCRIBE, server.TEST_TOPIC))
         try:
             await asyncio.wait_for(block_until_subscribed(server), 2)
         except Exception as e:
@@ -43,7 +45,7 @@ async def test_pubsub(server):
             data = await asyncio.wait_for(ws.recv(), 1)
         except asyncio.TimeoutError:
             pytest.fail("Timed out on recv")
-        broken_packet = data.split(DELIM, maxsplit=3)
+        broken_packet = unwrap_packet(data)
         assert len(broken_packet) == 3
         (topic, pin, meat) = broken_packet
         assert topic == server.TEST_TOPIC

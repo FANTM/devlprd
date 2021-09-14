@@ -3,8 +3,8 @@ import logging
 import threading
 import collections as coll
 
-from .protocol import wrap_packet, DataTopic, DaemonSocket
-from typing import Callable, Deque, Dict, List, Union
+from pydevlpr_protocol import wrap_packet, DataTopic, DaemonSocket
+from typing import Deque, Dict, List
 
 class DaemonState:
     """Thread protected shared state for the Daemon. It manages all of the connections and data topics."""
@@ -47,7 +47,7 @@ class DaemonState:
         try:
             for sub in self.SUBS[topic]:
                 try:
-                    await sub.send(wrap_packet(topic, pin, paylod))
+                    await sub.send(wrap_packet(topic, pin, payload))
                 except:
                     pass
         except:
