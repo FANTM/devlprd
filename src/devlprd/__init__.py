@@ -1,3 +1,3 @@
 from .daemon import (
-    main
+    DaemonController
 )

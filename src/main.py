@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-import devlprd.daemon as daemon
+import devlprd
 
 if __name__ == "__main__":
-    daemon.main()
+    controller = devlprd.DaemonController()
+    controller.start(True)
+    

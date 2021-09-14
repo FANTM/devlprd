@@ -1,4 +1,5 @@
 import asyncio
+import multiprocessing as mp
 import logging
 from pydevlpr_protocol import DataFormatException, unwrap_packet, PacketType, DaemonSocket
 
@@ -11,6 +12,18 @@ state: DaemonState = None  # Make sure to pass this to any other threads that ne
 devlpr_serial: DevlprSerif = None
 
 logging.basicConfig(level=logging.INFO)
+
+class DaemonController:
+
+    def start(self, block=False):
+        self.p = mp.Process(target=main)
+        self.p.start()
+        if block:
+            self.p.join()
+
+    def stop(self):
+        if self.p is not None and self.p.is_alive():
+            self.p.terminate()
 
 def main():
     asyncio.run(startup())
@@ -41,6 +54,7 @@ async def client_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWri
         logging.info("Disconnected from {0}".format(dsock.get_remote_address()))
         state.unsubscribe_all(dsock)
 
+
 async def startup() -> None:
     """Initiallizes both the serial connection and the socket server. It then just hangs until everything is done internally before cleaning up."""
 
@@ -58,13 +72,16 @@ async def startup() -> None:
     server = await asyncio.start_server(client_handler, CONFIG['ADDRESS'][0], CONFIG['ADDRESS'][1])
     async with server:
         await server.serve_forever()
+    print("Finish up")
     devlpr_serial.deinit_serial()
 
 def shutdown() -> None:
     """Manually closes out the server. Most of the time you don't need to do this because it should close when you exit the program."""
-
+    global server_task
+    global server
     try:
-        ws_server.close()
+        server.close()
+        asyncio.run_coroutine_threadsafe(server.wait_closed(), asyncio.get_event_loop())
     except AttributeError:
         pass  # Already closed and gone
-    devlpr_serial.deinit_serial()
+    print("Wrap up?")

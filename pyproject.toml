@@ -1,10 +1,12 @@
 [tool.poetry]
 name = "devlprd"
-version = "0.1.1"
+version = "0.2.1"
 description = "Daemon for managing integrations with the FATNM DEVLPR"
 readme = "README.md"
 authors = ["Ezra Boley <eboley@wisc.edu>"]
 license = "MIT"
+repository = "https://github.com/FANTM/devlprd"
+documentation = "https://docs.getfantm.com"
 
 [tool.poetry.dependencies]
 python = "^3.6"
