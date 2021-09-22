@@ -1,7 +1,7 @@
 /* Set these parameters based on your hardware setup */
 #define BAUD 2000000
-#define NUM_DEVLPRS 2
-int DEVLPR_PINS[] = {A0,A1};
+#define NUM_DEVLPRS 1
+int DEVLPR_PINS[] = {A0};
 int EMG_VALS[NUM_DEVLPRS];
 /*****************************************************/
 
