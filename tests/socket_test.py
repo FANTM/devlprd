@@ -1,7 +1,6 @@
 import asyncio
 import time
 import pytest
-import websockets
 import threading
 from pydevlpr_protocol import PacketType, unwrap_packet, wrap_packet 
 
