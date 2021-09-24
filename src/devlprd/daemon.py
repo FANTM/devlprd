@@ -70,18 +70,29 @@ async def startup() -> None:
     devlpr_serial.init_serial(state)
     # start a server, waiting for incoming subscribers to data (pydevlpr and other libraries)
     server = await asyncio.start_server(client_handler, CONFIG['ADDRESS'][0], CONFIG['ADDRESS'][1])
-    async with server:
+    try:
         await server.serve_forever()
+    except asyncio.exceptions.CancelledError:
+        await server.wait_closed()
     print("Finish up")
     devlpr_serial.deinit_serial()
 
 def shutdown() -> None:
     """Manually closes out the server. Most of the time you don't need to do this because it should close when you exit the program."""
-    global server_task
     global server
+    global devlpr_serial
     try:
-        server.close()
-        asyncio.run_coroutine_threadsafe(server.wait_closed(), asyncio.get_event_loop())
-    except AttributeError:
-        pass  # Already closed and gone
-    print("Wrap up?")
+        if server is not None and server.is_serving():
+            server.close()
+            #asyncio.run_coroutine_threadsafe(server.wait_closed(), asyncio.get_event_loop())
+    except:
+        pass 
+    try:
+        devlpr_serial.deinit_serial()
+    except:
+        pass # not even sure this is necessary
+
+# TODO this should all probably be part of an object rather than global state
+def _get_state():
+    global state
+    return state

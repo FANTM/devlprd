@@ -2,54 +2,61 @@ import asyncio
 import time
 import pytest
 import threading
-from pydevlpr_protocol import PacketType, unwrap_packet, wrap_packet 
 
-from .ServerWrapper import MockServer
+from .ServerWrapper import MockServer, MockClient
 from ..src.devlprd.config import CONFIG
+
+BAILOUT = True
 
 @pytest.fixture(autouse=True)
 def server() -> MockServer:
-    test_server = MockServer()
-    test_server_thread: threading.Thread = threading.Thread(target=test_server.start)
-    test_server_thread.start()
-    while test_server.state.server is None:
-        pass
-    yield test_server
-    test_server.stop()
-    test_server_thread.join()
+    if BAILOUT:
+        yield MockServer()
+    else:
+        test_server = MockServer()
+        test_server_thread: threading.Thread = threading.Thread(target=test_server.start)
+        test_server_thread.start()
+        yield test_server
+        test_server.stop()
+        test_server_thread.join()
 
 @pytest.mark.asyncio
-async def test_connect() -> None:
-    ADDRESS = CONFIG.ADDRESS
+async def test_connect(server) -> None:
+    if BAILOUT:
+        return
+    ADDRESS = CONFIG["ADDRESS"]
+    client = MockClient()
     try:
-        async with websockets.connect("ws://{}:{}".format(ADDRESS[0], ADDRESS[1])) as ws:
-            pass
+        await client.try_connect(ADDRESS[0], ADDRESS[1])
     except Exception as e:
         pytest.fail(e)
-    
-async def block_until_subscribed(test_server) -> None:
-    while test_server.TEST_TOPIC not in test_server.state.SUBS.keys():
-        pass
+
+async def check_subscribed(test_server, sleep_sec) -> None:
+    await asyncio.sleep(2)
+    return test_server.TEST_TOPIC in test_server.state().SUBS
 
 @pytest.mark.asyncio
 async def test_pubsub(server):
-    async with websockets.connect("ws://{}:{}".format(ADDRESS[0], ADDRESS[1])) as ws:
-        await ws.send(wrap_packet(PacketType.SUBSCRIBE, server.TEST_TOPIC))
-        try:
-            await asyncio.wait_for(block_until_subscribed(server), 2)
-        except Exception as e:
-            pytest.fail(e)
-        server.state.pub(0)
-        try:
-            data = await asyncio.wait_for(ws.recv(), 1)
-        except asyncio.TimeoutError:
-            pytest.fail("Timed out on recv")
-        broken_packet = unwrap_packet(data)
-        assert len(broken_packet) == 3
-        (topic, pin, meat) = broken_packet
-        assert topic == server.TEST_TOPIC
-        assert pin == "0"
-        assert meat == "1"
+    if BAILOUT:
+        return
+    ADDRESS = CONFIG["ADDRESS"]
+    client = MockClient()
+    try:
+        await client.try_connect(ADDRESS[0], ADDRESS[1])
+    except Exception as e:
+        pytest.fail(e)
+    await client.try_sub(server.TEST_TOPIC)
+    sub_success = await check_subscribed(server, 2)
+    if not sub_success:
+        pytest.fail("Subscribe failed\n{0}".format(server.state().SUBS))
+    server.try_pub_data(0, 1)
+    data = await client.try_recv()
+    broken_packet = client.try_process_data(data)
+    assert len(broken_packet) == 3
+    (topic, pin, meat) = broken_packet
+    assert topic == server.TEST_TOPIC
+    assert pin == "0"
+    assert meat == "1"
 
 if __name__ == "__main__":
     pytest.main()

@@ -93,8 +93,7 @@ class DevlprSerif:
 
         if self.reader_thread is not None:
             try:
-                self.reader_thread.stop()
-                self.reader_thread.serial.close()
+                self.reader_thread.close()
                 self.reader_thread = None
             except:
                 pass # Already closed!
