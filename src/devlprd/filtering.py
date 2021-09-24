@@ -1,51 +1,45 @@
-import datetime as DT
-import math
-from pydevlpr_protocol import DataTopic
+import numpy as np
 
-BUTTERWORTH = {
-    DataTopic.NOTCH_50_TOPIC: [
-        [0.95654323, -1.82035157, 0.95654323, 1.0, -1.84458768, 0.9536256],
-        [1.0, -1.90305207, 1.0, 1.0, -1.87701816, 0.95947072]
-    ],
-    DataTopic.NOTCH_60_TOPIC: [
-        [0.95654323, -1.77962093, 0.95654323, 1.0, -1.80093517, 0.95415195], 
-        []
-    ]
-}
+# NOTE: these all assume a sample rate of 1000Hz and 0-centered(ish)
+BUTTER2_45_55_NOTCH = [[0.95654323, -1.82035157, 0.95654323, 1., -1.84458768, 0.9536256 ],
+                       [1.        , -1.90305207, 1.        , 1., -1.87701816, 0.95947072]]
+BUTTER4_45_55_NOTCH = [[0.92117099, -1.75303637, 0.92117099, 1., -1.83993124, 0.94153282],
+                       [1.        , -1.90305207, 1.        , 1., -1.85827897, 0.94562794],
+                       [1.        , -1.90305207, 1.        , 1., -1.85916949, 0.9741553 ],
+                       [1.        , -1.90305207, 1.        , 1., -1.89861232, 0.9783552 ]]
+BUTTER8_45_55_NOTCH = [[0.85123494, -1.61994442, 0.85123494, 1., -1.84135423, 0.93909556],
+                       [1.        , -1.90305207, 1.        , 1., -1.85081373, 0.94130689],
+                       [1.        , -1.90305207, 1.        , 1., -1.84098214, 0.94640431],
+                       [1.        , -1.90305207, 1.        , 1., -1.86712758, 0.95177517],
+                       [1.        , -1.90305207, 1.        , 1., -1.85070766, 0.96298756],
+                       [1.        , -1.90305207, 1.        , 1., -1.88761855, 0.96842656],
+                       [1.        , -1.90305207, 1.        , 1., -1.86966575, 0.98667654],
+                       [1.        , -1.90305207, 1.        , 1., -1.90969867, 0.98897339]]
+BUTTER2_55_65_NOTCH = [[0.95654323, -1.77962093, 0.95654323, 1., -1.80093517, 0.95415195],
+                       [1.        , -1.860471  , 1.        , 1., -1.83739919, 0.95894143]]
+BUTTER4_55_65_NOTCH = [[0.92117099, -1.71381192, 0.92117099, 1., -1.79756457, 0.94190374],
+                       [1.        , -1.860471  , 1.        , 1., -1.81789764, 0.94525555],
+                       [1.        , -1.860471  , 1.        , 1., -1.81413419, 0.97453194],
+                       [1.        , -1.860471  , 1.        , 1., -1.8595667 , 0.97797707]]
+BUTTER8_55_65_NOTCH = [[0.85123494, -1.58369793, 0.85123494, 1., -1.799555  , 0.93929634],
+                       [1.        , -1.860471  , 1.        , 1., -1.81000016, 0.94110568],
+                       [1.        , -1.860471  , 1.        , 1., -1.79799514, 0.94688937],
+                       [1.        , -1.860471  , 1.        , 1., -1.82714508, 0.95128761],
+                       [1.        , -1.860471  , 1.        , 1., -1.80636275, 0.96347614],
+                       [1.        , -1.860471  , 1.        , 1., -1.84831785, 0.96793547],
+                       [1.        , -1.860471  , 1.        , 1., -1.82397995, 0.98688239],
+                       [1.        , -1.860471  , 1.        , 1., -1.87082063, 0.9887671 ]]
 
-prevMicros = 0
-prevValue = math.inf  # By making this infinite we avoid a false positive on the first run through.
+class ButterworthFilter():
+    def __init__(self, coeffs):
+        self.order = len(coeffs)
+        self.coeffs = np.array(coeffs)
+        self.z = np.array([[0.0]*2]*self.order) # order x 2 array of zeros
 
-def micros() -> int:
-    """Gets a microsecond timestamp in the range of [0, 6 * 10^8)."""
-
-    time = DT.datetime.now()
-    timestr = time.strftime('%S:%f')
-    sec,micro = timestr.split(':')
-    return int(sec) * 1e6 + int(micro)
-    
-def flex_check(value: int, thresholdMult: float = 1.5, cooldown: int = 400000) -> bool:
-    """Determine if a flex has occurred.
-
-    Uses a variable threshold and cooldown to both check if a flex appeared and to debounce the result.
-    You will likely want to calibrate it for a specific application, but the default values are a good starting point.
-    """
-
-    global prevMicros, prevValue
-    currMicros = micros()
-    if currMicros < prevMicros:
-        # We rolled over, micro stamp only goes up to 6 * 10^8 - 1
-        delta = currMicros + (1e8 * 6) - prevMicros
-    else:
-        delta = currMicros - prevMicros
-    
-    # Check if it has been long enough for another threshold check
-    if delta >= cooldown:
-        # Only calculate the threshold when we know we need to check it
-        threshold = thresholdMult * prevValue
-        if value >= threshold: # Rising edge detection
-            prevValue = value
-            prevMicros = currMicros
-            return True
-    prevValue = value
-    return False
+    def next_sample(self, xn):
+        for s in range(self.order):
+            xn_tmp = xn # make a temp copy
+            xn = self.coeffs[s, 0] * xn_tmp + self.z[s, 0]
+            self.z[s, 0] = (self.coeffs[s, 1] * xn_tmp - self.coeffs[s, 4] * xn + self.z[s, 1])
+            self.z[s, 1] = (self.coeffs[s, 2] * xn_tmp - self.coeffs[s, 5] * xn)
+        return xn
