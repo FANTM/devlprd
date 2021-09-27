@@ -3,7 +3,7 @@ import logging
 import threading
 import collections as coll
 
-from filtering import ButterworthFilter, BUTTER8_45_55_NOTCH, BUTTER8_55_65_NOTCH
+from .filtering import ButterworthFilter, BUTTER8_45_55_NOTCH, BUTTER8_55_65_NOTCH
 from pydevlpr_protocol import wrap_packet, DataTopic, DaemonSocket
 from typing import Deque, Dict, List
 
@@ -107,10 +107,10 @@ class DaemonState:
         with self.SERIAL_DATA_LOCK:
             # before buffering, we should efficiently update the running sum
             # outgoing value is on the right
-            new_sum = self.SERIAL_DATA_RUNNING_SUMS[pin] - self.SERIAL_DATA[-1] + data
+            new_sum = self.SERIAL_DATA_RUNNING_SUMS[pin] - self.SERIAL_DATA[pin][-1] + data
             self.SERIAL_DATA_RUNNING_SUMS[pin] = new_sum
             # and we can calculate the buffer average from the running sum
-            buf_avg = new_sum / BUFFER_SIZE
+            buf_avg = new_sum / DaemonState.BUFFER_SIZE
             # now we can push out the old value
             self.SERIAL_DATA[pin].appendleft(data)
             # for filtering, we need to "center" the data (use the buffer average)
