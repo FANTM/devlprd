@@ -63,6 +63,20 @@ class DaemonState:
         except:
             pass
 
+    async def _pub_float(self, topic: str, pin: int, payload: float) -> None:
+        """Coroutine that pushes given floating point payload to every socket subscribed to the specified topic."""
+
+        # NOTE should we really round the float here? it's not "real" precision anyway
+        payload = round(payload, 4)
+        try:
+            for sub in self.SUBS[topic]:
+                try:
+                    await sub.send(wrap_packet(topic, pin, payload))
+                except:
+                    pass
+        except:
+            pass
+
     async def _pub_bool(self, topic: str, pin: int, payload: bool) -> None:
         """Coroutine that pushes given boolean payload to every websocket subscribed to the specified topic."""
 
@@ -122,5 +136,5 @@ class DaemonState:
         # we need to make sure each processed chunk of data is published in lock-step with receipt of raw
         # might need to consider a Queue if publishing gets out of order
         asyncio.run_coroutine_threadsafe(self._pub_int(DataTopic.RAW_DATA_TOPIC, pin, data), loop=self.event_loop)
-        asyncio.run_coroutine_threadsafe(self._pub_int(DataTopic.NOTCH_60_TOPIC, pin, data_filt60), loop=self.event_loop)
-        asyncio.run_coroutine_threadsafe(self._pub_int(DataTopic.NOTCH_50_TOPIC, pin, data_filt50), loop=self.event_loop)
+        asyncio.run_coroutine_threadsafe(self._pub_float(DataTopic.NOTCH_60_TOPIC, pin, data_filt60), loop=self.event_loop)
+        asyncio.run_coroutine_threadsafe(self._pub_float(DataTopic.NOTCH_50_TOPIC, pin, data_filt50), loop=self.event_loop)
