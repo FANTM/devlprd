@@ -28,7 +28,7 @@ void setup() {
     // turn on CTC mode
     TCCR0A |= (1 << WGM01);
     // Set CS01 and CS00 bits for 64 prescaler
-    TCCR0B |= (1 << CS01) | (1 << CS00);   
+    TCCR0B |= (1 << CS01) | (1 << CS00);
     // enable timer compare interrupt
     TIMSK0 |= (1 << OCIE0A);
     sei();  // Start interrupts
