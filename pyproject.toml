@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "devlprd"
-version = "0.3.0"
+version = "0.3.1"
 description = "Daemon for managing integrations with the FATNM DEVLPR"
 readme = "README.md"
 authors = ["Ezra Boley <eboley@wisc.edu>"]
@@ -12,7 +12,6 @@ documentation = "https://docs.getfantm.com"
 python = ">=3.7,<3.11"
 pyserial = "^3.5"
 mypy = "^0.910"
-pydevlpr = ">=0.2.2"
 pydevlpr-protocol = "^0.1.0"
 numpy = "^1.21.2"
 
