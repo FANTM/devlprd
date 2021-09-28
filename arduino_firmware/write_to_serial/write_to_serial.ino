@@ -1,30 +1,44 @@
-#include "Libdevlpr.h"
-
-#define PACK(pin, data) ((((pin) & 0x000F) << 12) | ((data) & 0x0FFF))
-
 /* Set these parameters based on your hardware setup */
-int NUM_DEVLPRS = 1; 
+#define BAUD 2000000
+#define NUM_DEVLPRS 1
 int DEVLPR_PINS[] = {A0};
+int EMG_VALS[NUM_DEVLPRS];
 /*****************************************************/
 
-const int MAX_RESULTS = 2;
-volatile int results [MAX_RESULTS];
-volatile int resultNumber;
+byte bufOut[4];
+volatile bool dataReady = false;
 
-unsigned long lastTickMicros = 0L;
-unsigned long microsSinceEMG = 0L;
-Devlpr dev(A0, FILTER_60HZ);
-void printEMG(Devlpr *d);
+ISR(TIMER0_COMPA_vect) {  // Timer0 interrupt, 1kHz
+    if (!dataReady) {
+        for (int i = 0; i < NUM_DEVLPRS; i++) {
+            EMG_VALS[i] = analogRead(DEVLPR_PINS[i]);
+        }
+        dataReady = true;
+    }
+}
 
 void setup() {
-    Serial.begin(2000000);
-    Serial.println();
-    dev.scheduleFunction(printEMG, 1);
+    cli();  // Stop interrupts
+    //set timer0 interrupt at 1kHz
+    TCCR0A = 0;// set entire TCCR0A register to 0
+    TCCR0B = 0;// same for TCCR0B
+    TCNT0  = 0;//initialize counter value to 0
+    // set compare match register for 1khz increments
+    OCR0A = 249;// = (16*10^6) / (1000*64) - 1 (must be <256)
+    // turn on CTC mode
+    TCCR0A |= (1 << WGM01);
+    // Set CS01 and CS00 bits for 64 prescaler
+    TCCR0B |= (1 << CS01) | (1 << CS00);
+    // enable timer compare interrupt
+    TIMSK0 |= (1 << OCIE0A);
+    sei();  // Start interrupts
+
+    Serial.begin(BAUD);
 }
 
 /* Safety check in case the alias of A0-A5 isn't directly mapped to the number
  we expect */
-uint8_t normalize_pin(int analogPin) {
+byte normalizePin(int analogPin) {
     switch (analogPin)
     {
     case A0:
@@ -45,21 +59,26 @@ uint8_t normalize_pin(int analogPin) {
 }
 
 /* Helper function for formatting data in the way that the daemon expects */
-void fill_packet(uint8_t *buffOut, uint8_t pin, uint16_t data) {
-    uint16_t payload = PACK(pin, data);
-    buffOut[0] = ((payload & 0xFF00) >> 8) & 0x00FF;
-    buffOut[1] = payload & 0xFF;
-    buffOut[2] = '\r';
-    buffOut[3] = '\n';
-}
-
-void printEMG(Devlpr *d) {
-  int filtered = d->windowPeakToPeakAmplitude(true);
-  uint8_t buffOut[4];
-  fill_packet(buffOut, normalize_pin(A0), (uint16_t) filtered);
-  Serial.write(buffOut, 4);
+void fillPacket(byte *buffOut, byte pin, int value) {
+    // pack 16-bits for the emg value and 4 bits for the pin into
+    // three bytes in the following fashion (e=emg, p=pin)
+    // eeee eee0
+    // eeee eee0
+    // eepp pp00
+    // and terminate with a 1
+    // 0000 0001
+    buffOut[0] = (value >> 8) & 0xFE;
+    buffOut[1] = (value >> 1) & 0xFE;
+    buffOut[2] = ((value << 6) & 0xC0) | ((pin << 2) & 0x3C);
+    buffOut[3] = 0x01;
 }
 
 void loop() {
-    dev.tick();
+    if (dataReady) {
+        for (int i = 0; i < NUM_DEVLPRS; i++) {
+            fillPacket(bufOut, normalizePin(DEVLPR_PINS[i]), EMG_VALS[i]);
+            Serial.write(bufOut, 4);
+        }
+        dataReady = false;
+    }
 }

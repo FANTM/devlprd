@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-import asyncio
-import devlprd.daemon as daemon
+import devlprd
 
 if __name__ == "__main__":
-    asyncio.run(daemon.startup())
+    controller = devlprd.DaemonController()
+    controller.start(True)
+    
