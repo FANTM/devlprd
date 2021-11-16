@@ -2,6 +2,6 @@
 import devlprd
 
 if __name__ == "__main__":
-    controller = devlprd.DaemonController()
+    controller = devlprd.DaemonController('Neuron')
     controller.start(True)
     
