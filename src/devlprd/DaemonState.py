@@ -3,6 +3,8 @@ import logging
 import threading
 import collections as coll
 
+from devlprd.config import Board
+
 from .filtering import ButterworthFilter, BUTTER8_45_55_NOTCH, BUTTER8_55_65_NOTCH
 from pydevlpr_protocol import wrap_packet, DataTopic, DaemonSocket
 from typing import Deque, Dict, List
@@ -11,8 +13,8 @@ class DaemonState:
     """Thread protected shared state for the Daemon. It manages all of the connections and data topics."""
 
     BUFFER_SIZE = 32  # Somewhat arbitrary, can be fine tuned to provide different results with data processing (e.g. changes response time vs smoothing).
-    def __init__(self, event_loop):
-
+    def __init__(self, event_loop, board: Board):
+        self.PIN_NUMS = list(range(0, board['NUM PINS']))
         self.SUBS: Dict[str, List[DaemonSocket]] = dict()
         self.SERIAL_DATA: Dict[int, Deque[int]] = dict()
         self.SERIAL_DATA_RUNNING_SUMS: Dict[int, float] = dict() # for window avg
@@ -28,13 +30,13 @@ class DaemonState:
         self.BUTTER60_FILTS = dict()
         self.BUTTER50_FILTS = dict()
         # go through all possible pins and create a new one
-        for pin in [0, 1, 2, 3, 4, 5]:
+        for pin in self.PIN_NUMS:
             self.BUTTER60_FILTS[pin] = ButterworthFilter(BUTTER8_55_65_NOTCH)
             self.BUTTER50_FILTS[pin] = ButterworthFilter(BUTTER8_45_55_NOTCH)
 
     def init_data_buffers(self):
         # no need to save space, just make buffer objects ahead
-        for pin in [0, 1, 2, 3, 4, 5]:
+        for pin in self.PIN_NUMS:
             # just create the deque and throw an initial 0 in there for now
             self.SERIAL_DATA[pin] = coll.deque(maxlen=self.BUFFER_SIZE)
             self.SERIAL_DATA[pin].appendleft(0)

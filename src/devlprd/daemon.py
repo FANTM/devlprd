@@ -1,22 +1,30 @@
 import asyncio
 import multiprocessing as mp
 import logging
+from typing import Optional
 from pydevlpr_protocol import DataFormatException, unwrap_packet, PacketType, DaemonSocket
 
 from .serif import DevlprSerif
 from .DaemonState import DaemonState
-from .config import CONFIG
+from .config import BOARDS, Board, get_board_ids, CONFIG
 
 server = None
-state: DaemonState = None  # Make sure to pass this to any other threads that need access to shared state
-devlpr_serial: DevlprSerif = None
+state: Optional[DaemonState] = None  # Make sure to pass this to any other threads that need access to shared state
+devlpr_serial: Optional[DevlprSerif] = None
 
 logging.basicConfig(level=logging.INFO)
 
 class DaemonController:
+    def __init__(self, board_id: str) -> None:
+        try:
+            self.board = BOARDS[board_id]
+        except KeyError:
+            logging.warning("Invalid board ID, try get_board_ids() for options")
+            logging.info('Assuming DEVLPR')
+            self.board = BOARDS['DEVLPR']
 
     def start(self, block=False):
-        self.p = mp.Process(target=main)
+        self.p = mp.Process(target=main, args=(self.board,))
         self.p.start()
         if block:
             self.p.join()
@@ -25,8 +33,8 @@ class DaemonController:
         if self.p is not None and self.p.is_alive():
             self.p.terminate()
 
-def main():
-    asyncio.run(startup())
+def main(board: Board):
+    asyncio.run(startup(board))
 
 async def client_accept(sock: DaemonSocket) -> None:
     """Delegate and process incoming messages from a websocket connection."""
@@ -40,8 +48,11 @@ async def client_accept(sock: DaemonSocket) -> None:
             except DataFormatException:
                 continue  # Handle an unexpected issue with the packet
             if command == PacketType.SUBSCRIBE:
-                logging.info("Sub to {}".format(data))
-                state.subscribe(sock, data)
+                logging.info("Subscribing to {}".format(data))
+                try:
+                    state.subscribe(sock, data)
+                except AttributeError:
+                    logging.error("Failed to subscribe, Daemon State is None")
 
 async def client_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     """Main function for socket connections. Holds the connection until the other side disconnects."""
@@ -52,10 +63,12 @@ async def client_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWri
         await client_accept(dsock)
     finally:
         logging.info("Disconnected from {0}".format(dsock.get_remote_address()))
-        state.unsubscribe_all(dsock)
+        try:
+            state.unsubscribe_all(dsock)
+        except AttributeError:
+            logging.error("Failed to unsubscribe_all, Daemon State is None")
 
-
-async def startup() -> None:
+async def startup(board: Board) -> None:
     """Initiallizes both the serial connection and the socket server. It then just hangs until everything is done internally before cleaning up."""
 
     global server
@@ -64,9 +77,9 @@ async def startup() -> None:
     # we'll want the asyncio event loop for subscriptions, some processing, and publishing
     event_loop = asyncio.get_running_loop()
     # the DaemonState requests publishes upon state change, so needs to know the event loop
-    state = DaemonState(event_loop)
+    state = DaemonState(event_loop, board)
     # we initialize our serial connection, which is managed on a separate thread
-    devlpr_serial = DevlprSerif()
+    devlpr_serial = DevlprSerif(board)
     devlpr_serial.init_serial(state)
     # start a server, waiting for incoming subscribers to data (pydevlpr and other libraries)
     server = await asyncio.start_server(client_handler, CONFIG['ADDRESS'][0], CONFIG['ADDRESS'][1])
@@ -74,7 +87,6 @@ async def startup() -> None:
         await server.serve_forever()
     except asyncio.exceptions.CancelledError:
         await server.wait_closed()
-    print("Finish up")
     devlpr_serial.deinit_serial()
 
 def shutdown() -> None:
@@ -89,6 +101,8 @@ def shutdown() -> None:
         pass 
     try:
         devlpr_serial.deinit_serial()
+    except AttributeError:
+        logging.warning("Serial couldn't close because devlpr_serial is already None")
     except:
         pass # not even sure this is necessary
 
