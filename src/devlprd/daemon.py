@@ -6,7 +6,7 @@ from pydevlpr_protocol import DataFormatException, unwrap_packet, PacketType, Da
 
 from .serif import DevlprSerif
 from .DaemonState import DaemonState
-from .config import BOARDS, Board, get_board_ids, CONFIG
+from .config import BOARDS, Board, CONFIG
 
 server = None
 state: Optional[DaemonState] = None  # Make sure to pass this to any other threads that need access to shared state

@@ -2,9 +2,7 @@ import asyncio
 import logging
 import threading
 import collections as coll
-
-from devlprd.config import Board
-
+from .config import Board
 from .filtering import ButterworthFilter, BUTTER8_45_55_NOTCH, BUTTER8_55_65_NOTCH
 from pydevlpr_protocol import wrap_packet, DataTopic, DaemonSocket
 from typing import Deque, Dict, List
