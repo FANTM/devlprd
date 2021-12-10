@@ -5,9 +5,9 @@ import serial.threaded as sthread
 import serial.tools.list_ports as list_ports
 
 from pydevlpr_protocol import unpack_serial, DataFormatException
-from .config import CONFIG, BOARDS, Board
+from .config import BOARDS, Board
 
-def find_port(board_name: str) -> str:
+def find_port(vid: int) -> str:
     """Smart port searching for finding an Arduino.
     
     Parses metadata to figure out where your Arduino is to avoid
@@ -16,7 +16,7 @@ def find_port(board_name: str) -> str:
 
     port_list = list_ports.comports()
     for port in port_list:
-        if board_name in port.description.lower():
+        if vid == port.vid:
             return port.device   
     return ""
 
@@ -24,7 +24,7 @@ def find_port(board_name: str) -> str:
 def connect_to_board(board: Board) -> serial.Serial:
     """Creates a serial connection to an Arduino if possible."""
 
-    port = find_port(str(board['NAME']))
+    port = find_port(board['VID'])
     if port == "":
         logging.warning("No Board Found")
         return None
@@ -60,6 +60,7 @@ class DevlprReader(sthread.Packetizer):
         # Always buffer, custom callbacks are further up the stack
         try:
             (pin, data) = unpack_serial(packet)  # Split into payload and topic
+            logging.debug(print(f'PIN:{pin},DATA:{data}'))
         except DataFormatException:   # If the packet is invalid
             return
         

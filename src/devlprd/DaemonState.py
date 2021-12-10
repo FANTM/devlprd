@@ -10,7 +10,7 @@ from typing import Deque, Dict, List
 class DaemonState:
     """Thread protected shared state for the Daemon. It manages all of the connections and data topics."""
 
-    BUFFER_SIZE = 32  # Somewhat arbitrary, can be fine tuned to provide different results with data processing (e.g. changes response time vs smoothing).
+    BUFFER_SIZE = 256  # Somewhat arbitrary, can be fine tuned to provide different results with data processing (e.g. changes response time vs smoothing).
     def __init__(self, event_loop, board: Board):
         self.PIN_NUMS = list(range(0, board['NUM PINS']))
         self.SUBS: Dict[str, List[DaemonSocket]] = dict()
@@ -67,8 +67,9 @@ class DaemonState:
         """Coroutine that pushes given floating point payload to every socket subscribed to the specified topic."""
 
         # NOTE should we really round the float here? it's not "real" precision anyway
-        payload = round(payload, 4)
         try:
+            if len(self.SUBS[topic]) > 0:
+                payload = round(payload, 4)
             for sub in self.SUBS[topic]:
                 try:
                     await sub.send(wrap_packet(topic, pin, payload))
