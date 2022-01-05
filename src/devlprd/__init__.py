@@ -3,5 +3,6 @@ from .daemon import (
 )
 
 from .config import (
-    get_board_ids
+    get_board_ids,
+    ADDRESS
 )

@@ -2,20 +2,20 @@ from typing import Dict, List, Union
 
 Board = Dict[str, Union[str, int]]
 
-CONFIG = {
-    'ADDRESS': ("localhost", 8765)  # (Address/IP, Port)
-}
+ADDRESS = ("localhost", 8765)  # (Address/IP, Port)
 
 BOARDS: Dict[str, Board] = {
     'DEVLPR': {
         'BAUD': 2_000_000,
         'NAME': 'arduino',
-        'NUM PINS': 6
+        'NUM PINS': 6,
+        'VID': 0x2341
     },
     'Neuron': {
-        'BAUD': 115_200,
+        'BAUD':  2_000_000,
         'NAME': 'neuron',
-        'NUM PINS': 8
+        'NUM PINS': 8,
+        'VID': 0xcafe
     }
 }
 

@@ -10,7 +10,7 @@ from typing import Deque, Dict, List
 class DaemonState:
     """Thread protected shared state for the Daemon. It manages all of the connections and data topics."""
 
-    BUFFER_SIZE = 32  # Somewhat arbitrary, can be fine tuned to provide different results with data processing (e.g. changes response time vs smoothing).
+    BUFFER_SIZE = 64  # Somewhat arbitrary, can be fine tuned to provide different results with data processing (e.g. changes response time vs smoothing).
     def __init__(self, event_loop, board: Board):
         self.PIN_NUMS = list(range(0, board['NUM PINS']))
         self.SUBS: Dict[str, List[DaemonSocket]] = dict()
@@ -67,8 +67,9 @@ class DaemonState:
         """Coroutine that pushes given floating point payload to every socket subscribed to the specified topic."""
 
         # NOTE should we really round the float here? it's not "real" precision anyway
-        payload = round(payload, 4)
         try:
+            if len(self.SUBS[topic]) > 0:
+                payload = round(payload, 4)
             for sub in self.SUBS[topic]:
                 try:
                     await sub.send(wrap_packet(topic, pin, payload))
@@ -134,7 +135,7 @@ class DaemonState:
             data_filt60 = self.BUTTER60_FILTS[pin].next_sample(data_centered)
             data_filt50 = self.BUTTER50_FILTS[pin].next_sample(data_centered)
         # we need to make sure each processed chunk of data is published in lock-step with receipt of raw
-        # might need to consider a Queue if publishing gets out of order
+        # might need to consider a Queue if publishing gets out of order   
         asyncio.run_coroutine_threadsafe(self._pub_int(DataTopic.RAW_DATA_TOPIC, pin, data), loop=self.event_loop)
         asyncio.run_coroutine_threadsafe(self._pub_float(DataTopic.NOTCH_60_TOPIC, pin, data_filt60), loop=self.event_loop)
         asyncio.run_coroutine_threadsafe(self._pub_float(DataTopic.NOTCH_50_TOPIC, pin, data_filt50), loop=self.event_loop)

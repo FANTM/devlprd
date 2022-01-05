@@ -6,34 +6,39 @@ from pydevlpr_protocol import DataFormatException, unwrap_packet, PacketType, Da
 
 from .serif import DevlprSerif
 from .DaemonState import DaemonState
-from .config import BOARDS, Board, CONFIG
+from .config import BOARDS, Board, ADDRESS
 
 server = None
 state: Optional[DaemonState] = None  # Make sure to pass this to any other threads that need access to shared state
 devlpr_serial: Optional[DevlprSerif] = None
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format=f'%(levelname)s:{__name__}:%(message)s')
 
 class DaemonController:
     def __init__(self, board_id: str) -> None:
-        try:
-            self.board = BOARDS[board_id]
-        except KeyError:
-            logging.warning("Invalid board ID, try get_board_ids() for options")
-            logging.info('Assuming DEVLPR')
-            self.board = BOARDS['DEVLPR']
+        self.board_id = board_id
 
-    def start(self, block=False):
-        self.p = mp.Process(target=main, args=(self.board,))
+    async def start(self, block=False):
+        self.p = mp.Process(target=main, args=(self.board_id,))
         self.p.start()
         if block:
-            self.p.join()
+            try:
+                self.p.join()
+            except KeyboardInterrupt:
+                self.p.kill()
 
     def stop(self):
         if self.p is not None and self.p.is_alive():
             self.p.terminate()
 
-def main(board: Board):
+def main(board_id: str):
+    try:
+        board = BOARDS[board_id]
+    except KeyError:
+        logging.warning("Invalid board ID, try get_board_ids() for options")
+        logging.info('Assuming DEVLPR')
+        board = BOARDS['DEVLPR']
+
     asyncio.run(startup(board))
 
 async def client_accept(sock: DaemonSocket) -> None:
@@ -56,11 +61,14 @@ async def client_accept(sock: DaemonSocket) -> None:
 
 async def client_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     """Main function for socket connections. Holds the connection until the other side disconnects."""
-
+    
+    logging.debug("Incoming Connection")
     dsock = DaemonSocket(reader, writer)
     logging.info("Connected to {0}".format(dsock.get_remote_address()))
     try:
         await client_accept(dsock)
+    except (BrokenPipeError, ConnectionError):
+        pass  # Happens if we disconnect non-gracefully, but it's generally fine I think
     finally:
         logging.info("Disconnected from {0}".format(dsock.get_remote_address()))
         try:
@@ -82,21 +90,25 @@ async def startup(board: Board) -> None:
     devlpr_serial = DevlprSerif(board)
     devlpr_serial.init_serial(state)
     # start a server, waiting for incoming subscribers to data (pydevlpr and other libraries)
-    server = await asyncio.start_server(client_handler, CONFIG['ADDRESS'][0], CONFIG['ADDRESS'][1])
+    server = await asyncio.start_server(client_handler, ADDRESS[0], ADDRESS[1])
     try:
+        logging.debug("Started Listening")
         await server.serve_forever()
-    except asyncio.exceptions.CancelledError:
+    except (asyncio.exceptions.CancelledError):
+        logging.debug("Closing Server")
         await server.wait_closed()
+        
     devlpr_serial.deinit_serial()
 
 def shutdown() -> None:
     """Manually closes out the server. Most of the time you don't need to do this because it should close when you exit the program."""
+    
     global server
     global devlpr_serial
     try:
         if server is not None and server.is_serving():
             server.close()
-            #asyncio.run_coroutine_threadsafe(server.wait_closed(), asyncio.get_event_loop())
+            # asyncio.run_coroutine_threadsafe(server.wait_closed(), asyncio.get_event_loop())
     except:
         pass 
     try:
