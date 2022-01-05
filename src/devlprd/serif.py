@@ -60,7 +60,7 @@ class DevlprReader(sthread.Packetizer):
         # Always buffer, custom callbacks are further up the stack
         try:
             (pin, data) = unpack_serial(packet)  # Split into payload and topic
-            logging.debug(print(f'PIN:{pin},DATA:{data}'))
+            # logging.debug(print(f'PIN:{pin},DATA:{data}'))
         except DataFormatException:   # If the packet is invalid
             return
         

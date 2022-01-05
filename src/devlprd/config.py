@@ -12,7 +12,7 @@ BOARDS: Dict[str, Board] = {
         'VID': 0x2341
     },
     'Neuron': {
-        'BAUD': 115_200,
+        'BAUD':  2_000_000,
         'NAME': 'neuron',
         'NUM PINS': 8,
         'VID': 0xcafe
