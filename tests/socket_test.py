@@ -4,7 +4,7 @@ import pytest
 import threading
 
 from .ServerWrapper import MockServer, MockClient
-from ..src.devlprd.config import CONFIG
+from ..src.devlprd.config import ADDRESS
 
 BAILOUT = True
 
@@ -24,7 +24,6 @@ def server() -> MockServer:
 async def test_connect(server) -> None:
     if BAILOUT:
         return
-    ADDRESS = CONFIG["ADDRESS"]
     client = MockClient()
     try:
         await client.try_connect(ADDRESS[0], ADDRESS[1])
@@ -39,7 +38,6 @@ async def check_subscribed(test_server, sleep_sec) -> None:
 async def test_pubsub(server):
     if BAILOUT:
         return
-    ADDRESS = CONFIG["ADDRESS"]
     client = MockClient()
     try:
         await client.try_connect(ADDRESS[0], ADDRESS[1])

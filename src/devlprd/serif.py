@@ -5,7 +5,7 @@ import serial.threaded as sthread
 import serial.tools.list_ports as list_ports
 
 from pydevlpr_protocol import unpack_serial, DataFormatException
-from .config import BOARDS, Board
+from .config import Board
 
 def find_port(vid: int) -> str:
     """Smart port searching for finding an Arduino.
