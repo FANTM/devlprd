@@ -80,16 +80,17 @@ class DevlprSerif:
         self.reader_thread: Optional[sthread.ReaderThread] = None
         self.devlpr_reader: Optional[DevlprReader] = None
 
-    def init_serial(self, state) -> None:
+    def init_serial(self, state) -> bool:
         """ First opens the port, then spins off a watcher thread
         so it doesn't block the main path of execution."""
 
         serif = connect_to_board(self.board)
         if serif is None:
-            return
+            return False
         self.devlpr_reader = DevlprReader(state)
         self.reader_thread = sthread.ReaderThread(serif, self.devlpr_reader)
         self.reader_thread.start()
+        return True
 
     def deinit_serial(self) -> None:
         """Disconnect from serial and close out threads."""

@@ -28,10 +28,10 @@ class MockClient:
         self.connection = DaemonSocket(reader, writer)
 
     async def try_sub(self, topic):
-        self.connection.send(wrap_packet(PacketType.SUBSCRIBE, topic))
+        await self.connection.send(wrap_packet(PacketType.SUBSCRIBE, topic))
     
     async def try_recv(self):
-        return self.connection.recv()
+        return await self.connection.recv()
 
     def try_process_data(self, data):
         packet = unwrap_packet(data)
