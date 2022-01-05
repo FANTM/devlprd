@@ -18,7 +18,7 @@ class DaemonController:
     def __init__(self, board_id: str) -> None:
         self.board_id = board_id
 
-    async def start(self, block=False):
+    def start(self, block=False):
         self.p = mp.Process(target=main, args=(self.board_id,))
         self.p.start()
         if block:

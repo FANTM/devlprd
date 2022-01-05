@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "devlprd"
-version = "0.4.1"
+version = "0.4.2"
 description = "Daemon for managing integrations with the FATNM DEVLPR"
 readme = "README.md"
 authors = ["Ezra Boley <eboley@wisc.edu>"]
